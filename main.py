@@ -16,8 +16,7 @@ CODE_ETB = b"\x17"
 CODE_EXIT = b"\xB0"
 CODE_BAR = b"\xB1"
 CODE_NOBAR = b"\xB2"
-bytemap = {CODE_CR: b"\x22\x3B\x22", # CR -> ";"
-           b"\x2E": b"\x2C"} # . -> ,
+bytemap = {CODE_CR: b"\x22\x3B\x22"} # CR -> ";"
 HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse"'
 
 result = []
@@ -28,29 +27,32 @@ def clear():
 def nowtime():
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
-def truncComma(n: str):
-    return int(trunc(float(n.replace(",", "."))))
+def truncComma(n: float):
+    return int(trunc(n))
 
 def saveData(lst: list, mode: str):
-    pattern = PatternFill(start_color="00646464", end_color="00646464", fill_type="solid")
+    pat1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid")
+    pat2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid")
     wb = Workbook()
     ws = wb.active
     values = [0]*len(lst)
     for row, line in enumerate(lst, start=1):
         for col, v2 in enumerate(csv.reader([line], delimiter=";", quotechar='"').__next__(), start=1):
             if row != 1 and col >= 7 and col % 4 == 3:
+                if "?" in v2 or not v2:
+                    v2 = "00.0"
                 if mode == "2":
-                    ws.cell(row, col, str(truncComma(v2))).fill = pattern
-                    values[row] += truncComma(v2)
+                    ws.cell(row, col, str(truncComma(float(v2)))).fill = pat2
+                    values[row-1] += truncComma(float(v2))
                 else:
-                    ws.cell(row, col, v2).fill = pattern
-                    values[row] += v2
+                    ws.cell(row, col, v2).fill = pat2
+                    values[row-1] += float(v2)
             else:
                 ws.cell(row, col, v2)
     ws.insert_cols(idx=7)
-    ws.cell(1, 7, "Gesamt").fill = pattern
-    for row, val in enumerate(values, start=2):
-        ws.cell(row, 7, val)
+    ws.cell(1, 7, "Gesamt").fill = pat1
+    for row, val in enumerate(values[1:], start=2):
+        ws.cell(row, 7, val).fill = pat1
     wb.save(f"output_{nowtime()}.xlsx")
 
 def main():
