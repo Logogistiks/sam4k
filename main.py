@@ -17,6 +17,7 @@ bytemap = {CODE_CR: b"\x22\x3B\x22", # CR -> ";"
 with Serial(port="/dev/ttyUSB0", baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
     try:
         ser.write(CODE_NOBAR)
+        print("start")
         while True:
             ser.write(CODE_ENQ)
             resp = ser.read(1)
