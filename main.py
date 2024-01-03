@@ -15,7 +15,7 @@ CODE_BAR = b"\xB1"
 CODE_NOBAR = b"\xB2"
 bytemap = {CODE_CR: b"\x22\x3B\x22", # CR -> ";"
            b"\x2E": b"\x2C"} # . -> ,
-HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse";"Ringwert";"Teiler";"X-Abstand";"Y-Abstand"'
+HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse";"Ringwert";"Teiler";"X-Abstand";"Y-Abstand";"..."'
 
 result = []
 
@@ -48,11 +48,15 @@ with Serial(port="/dev/ttyUSB0", baudrate=9600, timeout=1, parity=PARITY_NONE, s
                         break
                     data += bytemap.get(byte, byte)
                 data += b"\x22" # "
-                result.append(data)
-            ser.write(CODE_ACK) # com cycle finished
+                result.append(data.decode("unicode-escape"))
+                end = None
+                while end != b"\x24":
+                    end = ser.read(1)
+                ser.write(CODE_ACK) # com cycle finished
             print("transmission finished")
             sleep(0.5)
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
         ser.write(CODE_EXIT) # set device inactive
         saveData([HEADER]+result)
+        sleep(1)
