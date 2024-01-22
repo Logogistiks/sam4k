@@ -37,7 +37,7 @@ def saveData(lst: list, mode: str):
     ws = wb.active
     values = [0]*len(lst)
     for row, line in enumerate(lst, start=1):
-        for col, v2 in enumerate(csv.reader([line], delimiter=";", quotechar='"').__next__(), start=1):
+        for col, v2 in enumerate(csv.reader([line], delimiter=";", quotechar='"').__next__(), start=1): #todo bug here maybe
             if row != 1 and col >= 7 and col % 4 == 3:
                 if "?" in v2 or not v2:
                     v2 = "00.0"
