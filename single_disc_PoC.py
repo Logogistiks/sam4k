@@ -16,23 +16,22 @@ CODE_ETB = b"\x17"
 CODE_EXIT = b"\xB0"
 CODE_BAR = b"\xB1"
 CODE_NOBAR = b"\xB2"
-bytemap = {CODE_CR: b"\x22\x3B\x22"} # CR -> ";"
 HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse"'
+
+pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
+pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
 
 result = []
 
 def clear():
+    """Clears the console"""
     os.system(("cls" if os.name == "nt" else "clear"))
 
 def nowtime():
+    """Returns the current time in YYYY_MM_DD-HH_MM_SS format"""
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
-def truncComma(n: float):
-    return int(trunc(n))
-
 def saveData(lst: list, mode: str):
-    pat1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid")
-    pat2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid")
     wb = Workbook()
     ws = wb.active
     values = [0]*len(lst)
@@ -42,17 +41,17 @@ def saveData(lst: list, mode: str):
                 if "?" in v2 or not v2:
                     v2 = "00.0"
                 if mode == "2":
-                    ws.cell(row, col, str(truncComma(float(v2)))).fill = pat2
-                    values[row-1] += truncComma(float(v2))
+                    ws.cell(row, col, str(trunc(float(v2)))).fill = pattern2
+                    values[row-1] += int(trunc(float(v2)))
                 else:
-                    ws.cell(row, col, v2).fill = pat2
+                    ws.cell(row, col, v2).fill = pattern2
                     values[row-1] += float(v2)
             else:
                 ws.cell(row, col, v2)
     ws.insert_cols(idx=7)
-    ws.cell(1, 7, "Gesamt").fill = pat1
+    ws.cell(1, 7, "Gesamt").fill = pattern1
     for row, val in enumerate(values[1:], start=2):
-        ws.cell(row, 7, val).fill = pat1
+        ws.cell(row, 7, val).fill = pattern1
     wb.save(f"output_{nowtime()}.xlsx")
 
 def main():
@@ -79,7 +78,7 @@ def main():
                         byte = ser.read(1)
                         if byte == CODE_ETB: # end of data
                             break
-                        data += bytemap.get(byte, byte)
+                        data += byte.replace(CODE_CR, "\x22\x3B\x22") # CR -> ";"
                     data += b"\x22" # "
                     result.append(data.decode("unicode-escape"))
                     end = None
