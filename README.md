@@ -1,4 +1,4 @@
-Anleitung `single_series_PoC.py`:
+## Anleitung `single_series_PoC.py`:
 - Programm starten
 - Modus eingeben
 - warten auf "start"
