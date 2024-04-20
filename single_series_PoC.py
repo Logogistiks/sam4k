@@ -6,6 +6,7 @@ from time import sleep
 from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
+import subprocess
 
 # communication codes
 CODE_STX = b"\x02"
@@ -32,7 +33,8 @@ def nowtime():
     """Returns the current time in YYYY_MM_DD-HH_MM_SS format"""
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
-def saveData(lst: list, mode: str):
+def saveData(lst: list, mode: str) -> str:
+    """Saves the data to an Excel file and returns the filename"""
     wb = Workbook()
     ws = wb.active
     values = [0]*len(lst)
@@ -53,7 +55,18 @@ def saveData(lst: list, mode: str):
     ws.cell(1, 7, "Gesamt").fill = pattern1
     for row, val in enumerate(values[1:], start=2):
         ws.cell(row, 7, val).fill = pattern1
-    wb.save(f"output_{nowtime()}.xlsx")
+    fname = f"output_{nowtime()}.xlsx"
+    wb.save(fname)
+    return fname
+
+def fileOpen(fname: str):
+    """Opens the file with the default program"""
+    if os.name == "nt":
+        os.startfile(fname, "open")
+    if os.name == "posix":
+        os.system(f"xdg-open {fname}")
+    else:
+        print("Could not open the file")
 
 def main():
     while True:
@@ -85,8 +98,8 @@ def main():
         except KeyboardInterrupt:
             print("KeyboardInterrupt")
             ser.write(CODE_EXIT) # set device inactive
-            saveData([HEADER]+result, mode)
-            sleep(1)
+            fname = saveData([HEADER]+result, mode)
+            fileOpen(fname)
 
 if __name__ == "__main__":
     main()
