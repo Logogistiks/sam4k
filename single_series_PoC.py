@@ -44,12 +44,16 @@ def saveData(lst: list[str], mode: str) -> str:
             if row != 1 and col >= 7 and col % 4 == 3:
                 if "?" in v2 or not v2:
                     v2 = "00.0"
-                if mode == "2":
-                    ws.cell(row, col, str(trunc(float(v2)))).fill = pattern2
-                    values[row-1] += int(trunc(float(v2)))
-                else:
-                    ws.cell(row, col, v2).fill = pattern2
-                    values[row-1] += float(v2)
+                match mode:
+                    case "1": # with decimal
+                        ws.cell(row, col, v2).fill = pattern2
+                        values[row-1] += float(v2)
+                    case "2": # truncate
+                        ws.cell(row, col, str(trunc(float(v2)))).fill = pattern2
+                        values[row-1] += int(trunc(float(v2)))
+                    case "3": # with decimal, but truncate final score
+                        ws.cell(row, col, v2).fill = pattern2
+                        values[row-1] += int(trunc(float(v2)))
             else:
                 ws.cell(row, col, v2) # implicitly write header
     ws.insert_cols(idx=7)
@@ -78,8 +82,9 @@ def main():
         clear()
         print("1) with decimal")
         print("2) truncate")
-        mode = input("[1/2] >>> ")
-        if mode in ["1", "2"]:
+        print("3) with decimal, but truncate final score")
+        mode = input("[1/2/3] >>> ")
+        if mode in ["1", "2", "3"]:
             break
     with Serial(port="/dev/ttyUSB0", baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
