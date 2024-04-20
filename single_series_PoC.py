@@ -7,6 +7,7 @@ from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
 
+# communication codes
 CODE_STX = b"\x02"
 CODE_ENQ = b"\x05"
 CODE_ACK = b"\x06"
@@ -73,17 +74,11 @@ def main():
                     sleep(0.5)
                     continue
                 if response == CODE_STX: # transmission start
-                    data = b"\x22" # "
-                    while True:
-                        byte = ser.read(1)
-                        if byte == CODE_ETB: # end of data
-                            break
-                        data += byte.replace(CODE_CR, "\x22\x3B\x22") # CR -> ";"
-                    data += b"\x22" # "
+                    response = ser.read_until(CODE_ETB) # read the data part
+                    # enclose data stream by double quotes and replace CR byte with ";"
+                    data = b"\x22" + response.replace(CODE_CR, b"\x22\x3B\x22") + b"\x22"
                     result.append(data.decode("unicode-escape"))
-                    end = None
-                    while end != b"\x24":
-                        end = ser.read(1)
+                    _ = ser.read_until(b"\x24") # read the rest, unimportant
                     ser.write(CODE_ACK) # com cycle finished
                 print("transmission finished")
                 sleep(0.5)

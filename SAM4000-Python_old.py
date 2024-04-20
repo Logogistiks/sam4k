@@ -1,3 +1,5 @@
+"""Code by ChatGPT"""
+
 import serial # Installiere die 'serial'-Bibliothek mit 'pip install pyserial'
 import time
 import keyboard  # Installiere die 'keyboard'-Bibliothek mit 'pip install keyboard'
