@@ -22,6 +22,7 @@ HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Tei
 
 pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
 pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
+pattern3 = PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
 
 result = []
 
@@ -33,7 +34,7 @@ def nowtime():
     """Returns the current time in YYYY_MM_DD-HH_MM_SS format"""
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
-def saveData(lst: list, mode: str) -> str:
+def saveData(lst: list[str], mode: str) -> str:
     """Saves the data to an Excel file and returns the filename"""
     wb = Workbook()
     ws = wb.active
@@ -50,11 +51,12 @@ def saveData(lst: list, mode: str) -> str:
                     ws.cell(row, col, v2).fill = pattern2
                     values[row-1] += float(v2)
             else:
-                ws.cell(row, col, v2)
+                ws.cell(row, col, v2) # implicitly write header
     ws.insert_cols(idx=7)
     ws.cell(1, 7, "Gesamt").fill = pattern1
-    for row, val in enumerate(values[1:], start=2):
+    for row, val in enumerate(values[1:], start=2): # ignore the header value which is 0
         ws.cell(row, 7, val).fill = pattern1
+    ws.cell(row+1, 7, sum(values[1:])).fill = pattern3
     fname = f"output_{nowtime()}.xlsx"
     wb.save(fname)
     return fname
@@ -64,7 +66,10 @@ def fileOpen(fname: str):
     if os.name == "nt":
         os.startfile(fname, "open")
     if os.name == "posix":
-        os.system(f"xdg-open {fname}")
+        try:
+            os.system(f"xdg-open {fname}")
+        except:
+            print("Could not open the file")
     else:
         print("Could not open the file")
 
