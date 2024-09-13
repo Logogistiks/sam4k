@@ -42,6 +42,8 @@ def saveData(lst: list[str], mode: str) -> str:
     for row, line in enumerate(lst, start=1):
         for col, v2 in enumerate(csv.reader([line], delimiter=";", quotechar='"').__next__(), start=1):
             if row != 1 and col >= 7 and col % 4 == 3: # todo: bug is maybe here, fill=pattern2 gets always executed when last col
+                #todo: in latest xlsx file, last col VA is 48th, and 48 % 4 == 0, so shouldnt be executed
+                #todo: needs testing if bug even occurs anymore
                 if "?" in v2 or not v2:
                     v2 = "00.0"
                 match mode:
