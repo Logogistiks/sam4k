@@ -109,7 +109,7 @@ def main():
                     result.append(data.decode("unicode-escape"))
                     _ = ser.read_until(b"\x24") # read the rest, unimportant
                     ser.write(CODE_ACK) # com cycle finished
-                print("transmission finished")
+                print("transmission finished, insert more or press Ctrl + c (Strg + c) to stop")
                 sleep(0.5)
         except KeyboardInterrupt:
             try:
