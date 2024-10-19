@@ -6,19 +6,19 @@ from time import sleep
 from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
-import subprocess
 
 # communication codes
-CODE_STX = b"\x02"
-CODE_ENQ = b"\x05"
-CODE_ACK = b"\x06"
-CODE_CR = b"\x0D"
-CODE_NAK = b"\x15"
-CODE_ETB = b"\x17"
-CODE_EXIT = b"\xB0"
-CODE_BAR = b"\xB1"
-CODE_NOBAR = b"\xB2"
-CODE_CTRLS = [CODE_STX, CODE_ENQ, CODE_ACK, CODE_CR, CODE_NAK, CODE_ETB, CODE_EXIT, CODE_BAR, CODE_NOBAR]
+CODE_CTRLS = [
+    CODE_STX := b"\x02",
+    CODE_ENQ := b"\x05",
+    CODE_ACK := b"\x06",
+    CODE_CR := b"\x0D",
+    CODE_NAK := b"\x15",
+    CODE_ETB := b"\x17",
+    CODE_EXIT := b"\xB0",
+    CODE_BAR := b"\xB1",
+    CODE_NOBAR := b"\xB2"
+]
 
 HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse"'
 
@@ -46,9 +46,7 @@ def saveData(lst: list[str], mode: str) -> str:
         for col, v2 in enumerate(csv.reader([line], delimiter=";", quotechar='"').__next__(), start=1):
             if v2 in CODE_CTRLS:
                 continue
-            if row != 1 and col >= 7 and col % 4 == 3: # todo: bug is maybe here, fill=pattern2 gets always executed when last col
-                #todo: in latest xlsx file, last col VA is 48th, and 48 % 4 == 0, so shouldnt be executed
-                #todo: needs testing if bug even occurs anymore
+            if row != 1 and col >= 7 and col % 4 == 3:
                 if "?" in v2 or not v2:
                     v2 = "00.0"
                 match mode:
@@ -122,11 +120,11 @@ def main():
                 fname = saveData([HEADER]+result, mode)
                 fileOpen(fname)
             except Exception as e:
-                print(f"Error occured: {e}")
+                print(f"Error occured during saving: {e}")
                 print("ser being closed 1")
                 ser.close()
         except Exception as e:
-            print(f"Error occured: {e}")
+            print(f"Error occured during runtime: {e}")
             print("ser being closed 2")
             ser.close()
 
