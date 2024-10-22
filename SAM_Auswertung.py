@@ -7,6 +7,21 @@ from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
 
+#todo
+# abfrage wieviel schuss pro scheibe soll
+# wenn von maschine mehr schüsse als schüsseSOLL übermittelt, dann nur erste schüsseSOLL nehmen (kommt eigentlich nicht vor wegen manueller eingabe an maschine, aber nur fals halt einfach die letzten verwerfen)
+# wenn von maschine weniger schüsse als schüsseSOLL übermittelt, mit 0 auffüllen
+# nach jeder übermittlung prüfen ob min 10 schüsse (1 serie) (konstante definieren) da sind, wenn ja in result speichern
+# -> rest wieder zurückhalten
+
+#todo bytes aufteilen in objekte
+
+# ringwert == 0 und teilerwert == ? => fehlschuss
+# ringwert > 0 und teilerwert == ? => manuelle korrektur
+# ringwert > 0 und teilerwert > 0 => normaler schuss
+
+# evtl teiler und x/y-abstand weglassen
+
 # communication codes
 CODE_CTRLS = [
     CODE_STX := b"\x02",
@@ -96,7 +111,12 @@ def fileOpen(fname: str):
         print("Could not open the file")
 
 def main():
+    if os.name == "nt":
+        PORT = "COM3"
+    else:
+        PORT = "/dev/ttyUSB0"
     result = []
+    #todo abfrage ideal anzahl schüsse pro streifen
     mode = modal(
         [
             ("1) with decimal", "1"),
@@ -104,10 +124,11 @@ def main():
             ("3) with decimal, but truncate final score", "3")
         ],
         prompt="[1/2/3] >>> ")
-    with Serial(port="COM3", baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
+    with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
             print("start")
+            count = 0
             while True:
                 ser.write(CODE_ENQ)
                 response = ser.read(1)
@@ -122,7 +143,8 @@ def main():
                     result.append(data.decode("unicode-escape"))
                     _ = ser.read_until(b"\x24") # read the rest, unimportant
                     ser.write(CODE_ACK) # com cycle finished
-                print("transmission finished, insert more or press Ctrl + c (Strg + c) to stop")
+                count += 1
+                print(f"transmission [{count}] finished, insert more or press Ctrl + c (Strg + c) to stop")
                 sleep(0.5)
         except KeyboardInterrupt:
             try:
