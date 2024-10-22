@@ -34,6 +34,21 @@ def nowtime():
     """Returns the current time in YYYY_MM_DD-HH_MM_SS format"""
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
+def modal(options: list[tuple[str, str]], prompt: str=">>> ", retry: bool=True) -> str:
+    """Prints a modal dialog and returns the selected option. \\
+    `options` should be passed as a list of tuples with the first element being the display text and the second element being the string the user has to enter to choose that option, this is case INsensitive
+    Example Use: \\
+    `modal([("Option 1", "1"), ("Option 2", "2")], prompt="Select an option: ")` \\
+    Returns `None` if the user enters an invalid option and `retry` is set to False"""
+    ans = None
+    while True:
+        clear()
+        for text, code in options:
+            print(text)
+        ans = input(prompt if prompt.endswith(" ") else prompt + " ")
+        if ans in [code.lower() for _, code in options] or not retry:
+            return ans
+
 def saveData(lst: list[str], mode: str) -> str:
     """Saves the data to an Excel file and returns the filename"""
     wb = Workbook()
@@ -82,14 +97,13 @@ def fileOpen(fname: str):
 
 def main():
     result = []
-    while True:
-        clear()
-        print("1) with decimal")
-        print("2) truncate")
-        print("3) with decimal, but truncate final score")
-        mode = input("[1/2/3] >>> ")
-        if mode in ["1", "2", "3"]:
-            break
+    mode = modal(
+        [
+            ("1) with decimal", "1"),
+            ("2) truncate", "2"),
+            ("3) with decimal, but truncate final score", "3")
+        ],
+        prompt="[1/2/3] >>> ")
     with Serial(port="COM3", baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
