@@ -26,8 +26,6 @@ pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="
 pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
 pattern3 = PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
 
-result = []
-
 def clear():
     """Clears the console"""
     os.system(("cls" if os.name == "nt" else "clear"))
@@ -83,6 +81,7 @@ def fileOpen(fname: str):
         print("Could not open the file")
 
 def main():
+    result = []
     while True:
         clear()
         print("1) with decimal")
