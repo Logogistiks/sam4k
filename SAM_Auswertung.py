@@ -7,12 +7,7 @@ from time import sleep
 from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
-
-def checksum_xor(byt: bytes) -> int:
-    chsum = 0
-    for b in byt:
-        chsum ^= b
-    return chsum
+import re
 
 #todo
 # abfrage wieviel schuss pro scheibe soll
@@ -42,26 +37,70 @@ CODE_CTRLS = [
     CODE_NOBAR := b"\xB2"
 ]
 
-HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse"'
-
-pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
-pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
-pattern3 = PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
-
 class Transmission:
-    def __init__(self) -> None:
-        self.barcode: int = None
-        self.manual_code: int = None
-        self.target_type: str = None
-        self.target_num: int = None
-        self.div: float = None
-        self.shots_num: int = None
-        self.shots: list[dict[str, float | int]] = None
+    "This class implements datastorage of a typical transmission by the SAM4000 device, which is sent via a serial connection."
+    def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[dict[str, float | int]]=None) -> None:
+        """Initializes a Transmission object with the given parameters, allthough `Transmission.from_bytes` should be used."""
+        self.barcode: str = barcode
+        self.manual_code: str = manual_code
+        self.target_type: str = target_type
+        self.target_num: int = target_num
+        self.div: float = div
+        self.shots_num: int = shots_num
+        self.shots: list[dict[str, float | int]] = shots
+
+    def _valid_barcode(self, bc: str) -> bool:
+        """Checks if a barcode is of valid form"""
+        return len(bc) == 8 and bc.isdecimal()
+
+    def _valid_manual_code(self, mc: str) -> bool:
+        """Checks if a manual code is of valid form"""
+        return len(mc) == 8 and mc.isdecimal()
+
+    def _valid_target_type(self, tt: str) -> bool:
+        """Checks if a target type is of valid form"""
+        return len(tt) == 2 and tt.isalpha()
+
+    def _valid_target_num(self, tn: str) -> bool:
+        """Checks if a target number is of valid form"""
+        return len(tn) == 2 and tn.isdecimal()
+
+    def _valid_div(self, div: str) -> bool:
+        """Checks if a division factor is of valid form"""
+        return len(div) == 3 and bool(re.fullmatch(r"\d\.\d", div))
+
+    def _valid_shot_number(self, sn: str) -> bool:
+        """Checks if a shot number is of valid form"""
+        return len(sn) == 2 and sn.isdecimal()
 
     def from_bytes(self, byt: bytes) -> Transmission:
-        bc, mc, tt, tn, div, sn, *s = byt.split(CODE_CR)
-        #todo here
-
+        """Parses the given bytes into a Transmission object. \\
+        Returns the Transmission object itself to allow fluent style chaining."""
+        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)]
+        if len(s) % 4 != 0: # s is a list of strings, each 4 strings represent a shot
+            raise ValueError("bytes are of invalid form, shot data does not make sense (not a multiple of 4)")
+        # technically the ? check is not necessary, but is left for clarity
+        if not "?" in bc and self._valid_barcode(bc):
+            self.barcode = bc
+        if not "?" in mc and self._valid_manual_code(mc):
+            self.manual_code = mc
+        if not "?" in tt and self._valid_target_type(tt):
+            self.target_type = tt
+        if not "?" in tn and self._valid_target_num(tn):
+            self.target_num = int(tn)
+        if not "?" in div and self._valid_div(div):
+            self.div = float(div)
+        if not "?" in sn and self._valid_shot_number(sn):
+            self.shots_num = int(sn)
+        self.shots = []
+        for i in range(0, len(s), 4):
+            self.shots.append({
+                "ring": float(s[i]) if not "?" in s[i] else None,
+                "div": float(s[i+1]) if not "?" in s[i+1] else None,
+                "x": int(s[i+2]) if not "?" in s[i+2] else None,
+                "y": int(s[i+3]) if not "?" in s[i+3] else None
+            })
+        return self
 #todo implement dynamic templating for saving
 
 def clear():
@@ -71,6 +110,14 @@ def clear():
 def nowtime():
     """Returns the current time in YYYY_MM_DD-HH_MM_SS format"""
     return datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
+
+def checksum_xor(byt: bytes) -> int:
+    """Calculates the XOR checksum of the given bytes. \\
+    Works by XORing all the bytes together."""
+    chsum = 0
+    for b in byt:
+        chsum ^= b
+    return chsum
 
 def modal(options: list[tuple[str, str]], prompt: str=">>> ", retry: bool=True) -> str:
     """Prints a modal dialog and returns the selected option. \\
@@ -134,19 +181,16 @@ def fileOpen(fname: str):
         print("Could not open the file")
 
 def main():
-    if os.name == "nt":
-        PORT = "COM3"
-    else:
-        PORT = "/dev/ttyUSB0"
+    HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Teilerfaktor";"Anzahl Einschüsse"'
+    global pattern1, pattern2, pattern3
+    pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
+    pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
+    pattern3 = PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
+
+    PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
     result = []
     #todo abfrage ideal anzahl schüsse pro streifen
-    mode = modal(
-        [
-            ("1) with decimal", "1"),
-            ("2) truncate", "2"),
-            ("3) with decimal, but truncate final score", "3")
-        ],
-        prompt="[1/2/3] >>> ")
+    mode = modal([("1) with decimal", "1"), ("2) truncate", "2"), ("3) with decimal, but truncate final score", "3")], prompt="[1/2/3] >>> ")
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
@@ -166,7 +210,7 @@ def main():
                         print(f"ERROR: checksum doesnt match!")
                         print(f"transmitted checksum: {checksum}")
                         print(f"calculated checksum : {calc_checksum}")
-                        raise Exception #todo implement sending NAK and rereceiving data
+                        raise NotImplementedError #todo implement sending NAK and rereceiving data
                     trans = Transmission().from_bytes(data)
 
                     #response = response.replace(CODE_ETB, bytes())
