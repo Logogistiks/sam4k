@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import csv
 from openpyxl import Workbook
@@ -6,6 +7,12 @@ from time import sleep
 from math import trunc
 from datetime import datetime
 from serial import Serial, PARITY_NONE, STOPBITS_ONE, EIGHTBITS
+
+def checksum_xor(byt: bytes) -> int:
+    chsum = 0
+    for b in byt:
+        chsum ^= b
+    return chsum
 
 #todo
 # abfrage wieviel schuss pro scheibe soll
@@ -40,6 +47,22 @@ HEADER = '"Barcode";"Manueller Code";"Scheibentyp";"Anzahl Scheiben";"Teiler-Tei
 pattern1 = PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
 pattern2 = PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
 pattern3 = PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
+
+class Transmission:
+    def __init__(self) -> None:
+        self.barcode: int = None
+        self.manual_code: int = None
+        self.target_type: str = None
+        self.target_num: int = None
+        self.div: float = None
+        self.shots_num: int = None
+        self.shots: list[dict[str, float | int]] = None
+
+    def from_bytes(self, byt: bytes) -> Transmission:
+        bc, mc, tt, tn, div, sn, *s = byt.split(CODE_CR)
+        #todo here
+
+#todo implement dynamic templating for saving
 
 def clear():
     """Clears the console"""
@@ -136,12 +159,21 @@ def main():
                     sleep(0.5)
                     continue
                 if response == CODE_STX: # transmission start
-                    response = ser.read_until(CODE_ETB) # read the data part
-                    response = response.replace(CODE_ETB, bytes())
+                    response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
+                    data, checksum = response.split(CODE_ETB)
+                    calc_checksum = checksum_xor(CODE_STX + data + CODE_ETB)
+                    if calc_checksum != checksum:
+                        print(f"ERROR: checksum doesnt match!")
+                        print(f"transmitted checksum: {checksum}")
+                        print(f"calculated checksum : {calc_checksum}")
+                        raise Exception #todo implement sending NAK and rereceiving data
+                    trans = Transmission().from_bytes(data)
+
+                    #response = response.replace(CODE_ETB, bytes())
                     # enclose data stream by double quotes and replace CR byte with ";"
-                    data = b"\x22" + response.replace(CODE_CR, b"\x22\x3B\x22")[:-2] # remove 1x double quote and 1x semicolon at end of line
-                    result.append(data.decode("unicode-escape"))
-                    _ = ser.read_until(b"\x24") # read the rest, unimportant
+                    #data = b"\x22" + response.replace(CODE_CR, b"\x22\x3B\x22")[:-2] # remove 1x double quote and 1x semicolon at end of line
+                    #result.append(data.decode("unicode-escape"))
+                    #_ = ser.read_until(b"\x24") # read the rest, unimportant
                     ser.write(CODE_ACK) # com cycle finished
                 count += 1
                 print(f"transmission [{count}] finished, insert more or press Ctrl + c (Strg + c) to stop")
