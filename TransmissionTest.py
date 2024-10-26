@@ -1,13 +1,27 @@
 """This file tests the Transmission class with the temp data"""
+from time import sleep
 
-from SAM_Auswertung import CODE_CR, Transmission
+from SAM_Auswertung import CODE_CR, Transmission, save_data, open_file
 
-with open("temp.txt", "r") as f:
-    text = f.readlines()[-1][1:-1].replace("\n", "").replace("\r", "")
-byt = text.encode("utf-8").replace(b"\x22\x3B\x22", CODE_CR)
+with open("temp2.txt", "r") as f:
+    #print(repr(f.readlines()))
+    lines = f.readlines()
+    text1 = lines[-1].replace("\n", "").replace("\r", "")
+    text2 = lines[-2].replace("\n", "").replace("\r", "")
+byt1 = text1.encode("utf-8").replace(b"\x22\x3B\x22", CODE_CR).replace(b"\x22", b"")
+byt2 = text2.encode("utf-8").replace(b"\x22\x3B\x22", CODE_CR).replace(b"\x22", b"")
 
-print(byt)
+#print(byt)
 
-trans = Transmission().from_bytes(byt)
+trans1 = Transmission().from_bytes(byt1)
+trans2 = Transmission().from_bytes(byt2)
 
-print(trans.__dict__)
+#print(trans)
+
+#print(f"valid: {trans.get_valid_shot_num()}")
+#print(f"invalid: {trans.get_invalid_shot_num()}")
+#print(f"manual: {trans.get_manual_corrected_num()}")
+
+open_file(save_data([trans1.shots, trans2.shots], mode=1))
+while True:
+    sleep(5)
