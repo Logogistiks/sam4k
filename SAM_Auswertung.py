@@ -83,9 +83,7 @@ class Transmission:
     def from_bytes(self, byt: bytes) -> Transmission:
         """Parses the given bytes into a Transmission object. \\
         Returns the Transmission object itself to allow fluent style chaining."""
-        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)[:-1]]
-        #for abc in [bc, mc, tt, tn, div, sn, s]:
-        #    #print(abc)
+        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)[:-1]] # remove last empty string
         if len(s) % 4 != 0: # s is a list of strings, each 4 strings represent a shot
             raise ValueError("bytes are of invalid form, shot data does not make sense (not a multiple of 4)")
         # technically the ? check is not necessary, but is left for clarity
@@ -159,7 +157,8 @@ def modal(options: list[tuple[str, str]], msg: str=None, prompt: str=">>> ", ret
         if msg is not None:
             print(msg)
         for text, code in options:
-            print(text)
+            if text:
+                print(text)
         ans = input(prompt if prompt.endswith(" ") else prompt + " ")
         if ans in [code.lower() for _, code in options] or not retry:
             return ans
@@ -245,9 +244,9 @@ def main() -> None:
     pattern2 = openpyxl.styles.PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
     pattern3 = openpyxl.styles.PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
 
-    shots_per_target = int(modal(options=[("[1]", "1"), ("[2]", "2"), ("[5]", "5"), ("[10]", "10")], msg="Please enter the supposed number of shots per target:", prompt="[1/2/5/10] >>> "))
+    shots_per_target = int(modal(options=[("", "1"), ("", "2"), ("", "5"), ("", "10")], msg="Bitte gebe die Anzahl der Schüsse pro Streifen an:", prompt="[1/2/5/10] >>> "))
 
-    mode = modal([("1) with decimal", "1"), ("2) truncate", "2"), ("3) with decimal, but truncate final score", "3")], msg="Please select the mode of operation:", prompt="[1/2/3] >>> ")
+    mode = modal([("1) mit Teiler", "1"), ("2) ohne Teiler", "2"), ("3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren", "3")], msg="Bitte Modus auswählen:", prompt="[1/2/3] >>> ")
 
     PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
@@ -292,7 +291,7 @@ def main() -> None:
                         memory.clear()
                     elif len(memory) < SERIES_SHOTS_NUM:
                         count += 1
-                        print(f"transmission [{count}] finished, insert more or press Ctrl + c (Strg + c) to stop")
+                        print(f"Scheibe [{count}] übertragen, weitere einlegen oder Strg + c drücken, um Ergebnisse anzuzeigen")
                         continue
                     else:
                         result.append(deepcopy(memory))
@@ -310,7 +309,7 @@ def main() -> None:
                     # if this is equal to series num, save shots to result
                     # if this is less than series num, save shots to memory
                 count += 1
-                print(f"transmission [{count}] finished, insert more or press Ctrl + c (Strg + c) to stop")
+                print(f"Scheibe [{count}] übertragen, weitere einlegen oder Strg + c drücken, um Ergebnisse anzuzeigen")
                 sleep(0.5)
         except KeyboardInterrupt:
             try:
