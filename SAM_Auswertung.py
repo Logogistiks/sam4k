@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from copy import deepcopy
 from datetime import datetime
 from math import trunc
 from time import sleep
@@ -82,7 +83,9 @@ class Transmission:
     def from_bytes(self, byt: bytes) -> Transmission:
         """Parses the given bytes into a Transmission object. \\
         Returns the Transmission object itself to allow fluent style chaining."""
-        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)]
+        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)[:-1]]
+        #for abc in [bc, mc, tt, tn, div, sn, s]:
+        #    #print(abc)
         if len(s) % 4 != 0: # s is a list of strings, each 4 strings represent a shot
             raise ValueError("bytes are of invalid form, shot data does not make sense (not a multiple of 4)")
         # technically the ? check is not necessary, but is left for clarity
@@ -144,7 +147,7 @@ def checksum_xor(byt: bytes) -> int:
         chsum ^= b
     return chsum
 
-def modal(options: list[tuple[str, str]], prompt: str=">>> ", retry: bool=True) -> str:
+def modal(options: list[tuple[str, str]], msg: str=None, prompt: str=">>> ", retry: bool=True) -> str:
     """Prints a modal dialog and returns the selected option. \\
     `options` should be passed as a list of tuples with the first element being the display text and the second element being the string the user has to enter to choose that option, this is case INsensitive
     Example Use: \\
@@ -153,6 +156,8 @@ def modal(options: list[tuple[str, str]], prompt: str=">>> ", retry: bool=True) 
     ans = None
     while True:
         clear()
+        if msg is not None:
+            print(msg)
         for text, code in options:
             print(text)
         ans = input(prompt if prompt.endswith(" ") else prompt + " ")
@@ -240,11 +245,9 @@ def main() -> None:
     pattern2 = openpyxl.styles.PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
     pattern3 = openpyxl.styles.PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
 
-    print("Please enter the supposed number of shots per target:")
-    shots_per_target = int(modal([("[1]", "1"), ("[2]", "2"), ("[5]", "5"), ("[10]", "10")], prompt="[1/2/5/10] >>> "))
+    shots_per_target = int(modal(options=[("[1]", "1"), ("[2]", "2"), ("[5]", "5"), ("[10]", "10")], msg="Please enter the supposed number of shots per target:", prompt="[1/2/5/10] >>> "))
 
-    print("Please select the mode of operation:")
-    mode = modal([("1) with decimal", "1"), ("2) truncate", "2"), ("3) with decimal, but truncate final score", "3")], prompt="[1/2/3] >>> ")
+    mode = modal([("1) with decimal", "1"), ("2) truncate", "2"), ("3) with decimal, but truncate final score", "3")], msg="Please select the mode of operation:", prompt="[1/2/3] >>> ")
 
     PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
@@ -257,19 +260,21 @@ def main() -> None:
             while True:
                 ser.write(CODE_ENQ)
                 response = ser.read(1)
+                if response == b"":
+                    continue
                 if response == CODE_NAK: # no result
                     sleep(0.5)
                     continue
                 if response == CODE_STX: # transmission start
                     response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
                     data, checksum = response.split(CODE_ETB)
-                    calc_checksum = checksum_xor(CODE_STX + data + CODE_ETB)
-                    if calc_checksum != checksum:
-                        print(f"ERROR: checksum doesnt match!")
-                        print(f"transmitted checksum: {checksum}")
-                        print(f"calculated checksum : {calc_checksum}")
-                        raise NotImplementedError #todo implement sending NAK and rereceiving data
-                        #? needs data on what gets sent after sending NAK
+                    #calc_checksum = checksum_xor(data)
+                    #if calc_checksum != int(checksum):
+                    #    print(f"ERROR: checksum doesnt match!")
+                    #    print(f"transmitted checksum: {checksum}")
+                    #    print(f"calculated checksum : {calc_checksum}")
+                    #    raise NotImplementedError #todo implement sending NAK and rereceiving data
+                    #    #? needs data on what gets sent after sending NAK
                     trans = Transmission().from_bytes(data)
 
                     # extract valid data from transmission
@@ -286,15 +291,18 @@ def main() -> None:
                         result.append(memory[:SERIES_SHOTS_NUM]) # discard the rest
                         memory.clear()
                     elif len(memory) < SERIES_SHOTS_NUM:
+                        count += 1
+                        print(f"transmission [{count}] finished, insert more or press Ctrl + c (Strg + c) to stop")
                         continue
                     else:
-                        result.append(memory)
+                        result.append(deepcopy(memory))
                         memory.clear()
 
                     ser.write(CODE_ACK) # com cycle finished
                     #ser.write(CODE_NAK) #todo test what data gets resend
                     #print(ser.read_until(b"\x24"))
-
+                    #ser.close()
+                    #sys.exit()
                     #* Note:
                     # it is guaranteed that SERIES_SHOTS_NUM is a multiple of shots_per_target
                     # if num valid shots is more than shots per target, discard the rest
