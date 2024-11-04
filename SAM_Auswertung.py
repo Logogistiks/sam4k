@@ -236,7 +236,7 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: str) -> str:
     wb.save(fname)
     return fname
 
-def main() -> None:
+def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
     global pattern1, pattern2, pattern3
@@ -266,6 +266,9 @@ def main() -> None:
                     continue
                 if response == CODE_STX: # transmission start
                     response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
+                    if log:
+                        with open(f"log\\log-{nowtime()}.bin", "wb") as f:
+                            f.write(response)
                     data, checksum = response.split(CODE_ETB)
                     #calc_checksum = checksum_xor(data)
                     #if calc_checksum != int(checksum):
@@ -323,4 +326,4 @@ def main() -> None:
             print(f"Error occured during runtime: {e}")
 
 if __name__ == "__main__":
-    main()
+    main(log=True)
