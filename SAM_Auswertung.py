@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import os
 import re
 from copy import deepcopy
@@ -38,6 +39,11 @@ class Transmission:
         self.div: float = div
         self.shots_num: int = shots_num
         self.shots: list[dict[str, float | int]] = shots
+
+    @staticmethod
+    def create_empty() -> Transmission:
+        """returns an empty Transmission object with attributes of expected type instead of `None`"""
+        return Transmission(barcode="", manual_code="", target_type="", target_num=0, div=0.0, shots_num=0, shots=[])
 
     def __str__(self) -> str:
         """Returns a string representation of the Transmission object"""
@@ -265,18 +271,30 @@ def main(log: bool=False) -> None:
                     sleep(0.5)
                     continue
                 if response == CODE_STX: # transmission start
-                    response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
-                    if log:
-                        with open(f"log\\log-{nowtime()}.bin", "wb") as f:
-                            f.write(response)
-                    data, checksum = response.split(CODE_ETB)
-                    #calc_checksum = checksum_xor(data)
-                    #if calc_checksum != int(checksum):
-                    #    print(f"ERROR: checksum doesnt match!")
-                    #    print(f"transmitted checksum: {checksum}")
-                    #    print(f"calculated checksum : {calc_checksum}")
-                    #    raise NotImplementedError #todo implement sending NAK and rereceiving data
-                    #    #? needs data on what gets sent after sending NAK
+                    retries = 0
+                    while True:
+                        response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
+                        if log:
+                            if not os.path.exists("log"):
+                                os.mkdir("log")
+                            with open(os.path.join("log", f"log-{nowtime()}.bin"), "wb") as f:
+                                f.write(response)
+                        data, checksum = response.split(CODE_ETB)
+                        calc_checksum = checksum_xor(CODE_STX + data + CODE_ETB)
+                        if calc_checksum != ord(checksum):
+                            #print(f"ERROR: checksum doesnt match!")
+                            #print(f"transmitted checksum: {ord(checksum)}")
+                            #print(f"calculated checksum : {calc_checksum}")
+                            if retries <= 3:
+                                ser.write(CODE_NAK)
+                                retries += 1
+                                continue
+                            else:
+                                ser.write(CODE_ACK)
+                                print("Fehler: Übertragung fehlerhaft, bitte Kabel auf Wackelkontakt o.ä. prüfen und Serie neu erfassen")
+                                raise KeyboardInterrupt("hack to jump into catch block")
+                        else:
+                            break
                     trans = Transmission().from_bytes(data)
 
                     # extract valid data from transmission
@@ -301,10 +319,6 @@ def main(log: bool=False) -> None:
                         memory.clear()
 
                     ser.write(CODE_ACK) # com cycle finished
-                    #ser.write(CODE_NAK) #todo test what data gets resend
-                    #print(ser.read_until(b"\x24"))
-                    #ser.close()
-                    #sys.exit()
                     #* Note:
                     # it is guaranteed that SERIES_SHOTS_NUM is a multiple of shots_per_target
                     # if num valid shots is more than shots per target, discard the rest
@@ -326,4 +340,4 @@ def main(log: bool=False) -> None:
             print(f"Error occured during runtime: {e}")
 
 if __name__ == "__main__":
-    main(log=True)
+    main(log=False)

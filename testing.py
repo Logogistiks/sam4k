@@ -2,7 +2,7 @@
 from time import sleep
 import os
 
-from SAM_Auswertung import CODE_CR, Transmission, save_data, open_file
+from SAM_Auswertung import CODE_CR, Transmission, save_data, open_file, checksum_xor, CODE_ETB, CODE_STX
 
 """with open("temp2.txt", "r") as f:
     #print(repr(f.readlines()))
@@ -31,8 +31,15 @@ while True:
     f.write(byt1)"""
 
 logfiles = [os.path.join("log", filename) for filename in os.listdir("log") if filename.endswith(".bin")]
-newest_logfile = max(logfiles, key=os.path.getctime)
-with open("log\\log.bin", "rb") as f:
+newest_logfile = min(logfiles, key=os.path.getctime)
+with open(newest_logfile, "rb") as f:
     content = f.read()
-    print(content)
-    print(CODE_CR in content)
+    data, checksum = content.split(CODE_ETB)
+    print(data, ord(checksum))
+    print(checksum_xor(CODE_STX + data + CODE_ETB))
+    #last_char = content[-1]
+    #print(last_char)
+    #print(hex(last_char))
+    #print(checksum_xor(last_char))
+    #print(ord(last_char))
+    #print(hex(ord(last_char)))
