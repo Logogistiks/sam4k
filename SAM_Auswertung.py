@@ -181,7 +181,7 @@ def open_file(fname: str) -> None:
     else:
         print("Could not open the file")
 
-def save_data(shot_data: list[list[dict[str, float | int]]], mode: str) -> str:
+def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
     """Saves the data to an Excel file and returns the filename"""
     pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
     pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
@@ -332,7 +332,7 @@ def main(log: bool=False) -> None:
             try:
                 print("KeyboardInterrupt")
                 ser.write(CODE_EXIT) # set device inactive
-                fname = save_data(result, mode)
+                fname = save_data(result, int(mode))
                 open_file(fname)
             except Exception as e:
                 print(f"Error occured during saving: {e}")

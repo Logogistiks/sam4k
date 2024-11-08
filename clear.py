@@ -13,4 +13,9 @@ if __name__ == "__main__":
             os.remove(file)
             #print(f"Removed {file}")
     print("Cleared output files!")
-    sleep(1)
+
+    if input("Also clear bin logfiles? [y/n] >>> ").lower() == "y":
+        for file in os.listdir("log"):
+            if file.endswith(".bin"):
+                os.remove(os.path.join("log", file))
+                #print(f"Removed {file}")
