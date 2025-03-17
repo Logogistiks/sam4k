@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 import os
 import re
 from copy import deepcopy
@@ -13,7 +12,6 @@ import openpyxl.cell
 import openpyxl.styles
 from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
 
-# communication codes
 COM_CODES = [
     CODE_STX := b"\x02",
     CODE_ENQ := b"\x05",
@@ -25,13 +23,15 @@ COM_CODES = [
     CODE_BAR := b"\xB1",
     CODE_NOBAR := b"\xB2"
 ]
+"""Codes for communication with the SAM4000 device"""
 
 SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
+"""How many shots should be saved in a series"""
 
 class Transmission:
-    "This class implements datastorage of a typical transmission by the SAM4000 device, which is sent via a serial connection."
+    "This class implements handling of a typical transmission by the SAM4000 device, which is received in bytes via serial connection."
     def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[dict[str, float | int]]=None) -> None:
-        """Initializes a Transmission object with the given parameters, allthough `Transmission.from_bytes` should be used."""
+        """Initializes a Transmission object with the given parameters, allthough usage of `Transmission.create_empty` or `Transmission.from_bytes` is recommended."""
         self.barcode: str = barcode
         self.manual_code: str = manual_code
         self.target_type: str = target_type
@@ -42,11 +42,11 @@ class Transmission:
 
     @staticmethod
     def create_empty() -> Transmission:
-        """returns an empty Transmission object with attributes of expected type instead of `None`"""
+        """returns an empty Transmission object with attributes of respective type instead of `None`"""
         return Transmission(barcode="", manual_code="", target_type="", target_num=0, div=0.0, shots_num=0, shots=[])
 
     def __str__(self) -> str:
-        """Returns a string representation of the Transmission object"""
+        """Returns a human readable representation of the Transmission object"""
         res = ""
         res += f"Transmission(\n"
         res += f"    barcode={self.barcode},\n"
@@ -62,62 +62,69 @@ class Transmission:
         res += f")"
         return res
 
-    def _valid_barcode(self, bc: str) -> bool:
-        """Checks if a barcode is of valid form"""
+    @staticmethod
+    def _valid_barcode(bc: str) -> bool:
+        """Checks if a barcode string is of valid form"""
         return bool(re.fullmatch(r"[0-9]{8}", bc))
 
-    def _valid_manual_code(self, mc: str) -> bool:
-        """Checks if a manual code is of valid form"""
+    @staticmethod
+    def _valid_manual_code(mc: str) -> bool:
+        """Checks if a manual code string is of valid form"""
         return bool(re.fullmatch(r"[0-9]{8}", mc))
 
-    def _valid_target_type(self, tt: str) -> bool:
-        """Checks if a target type is of valid form"""
+    @staticmethod
+    def _valid_target_type(tt: str) -> bool:
+        """Checks if a target type string is of valid form"""
         return tt in ("LG", "LP", "KK", "ZS", "LS")
 
-    def _valid_target_num(self, tn: str) -> bool:
-        """Checks if a target number is of valid form"""
+    @staticmethod
+    def _valid_target_num(tn: str) -> bool:
+        """Checks if a target number string is of valid form"""
         return bool(re.fullmatch(r"[0-9]{2}", tn))
 
-    def _valid_div(self, div: str) -> bool:
-        """Checks if a division factor is of valid form"""
+    @staticmethod
+    def _valid_div(div: str) -> bool:
+        """Checks if a division factor string is of valid form"""
         return bool(re.fullmatch(r"[0-9]\.[0-9]", div))
 
-    def _valid_shot_number(self, sn: str) -> bool:
-        """Checks if a shot number is of valid form"""
+    @staticmethod
+    def _valid_shot_number(sn: str) -> bool:
+        """Checks if a shot number string is of valid form"""
         return bool(re.fullmatch(r"[0-9]{2}", sn))
 
-    def from_bytes(self, byt: bytes) -> Transmission:
-        """Parses the given bytes into a Transmission object. \\
-        Returns the Transmission object itself to allow fluent style chaining."""
-        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)[:-1]] # remove last empty string
+    @staticmethod
+    def from_bytes(byt: bytes) -> Transmission:
+        """Parses the given bytes into a Transmission object and returns it."""
+        trans = Transmission.create_empty()
+        bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)] # remove last empty string
         if len(s) % 4 != 0: # s is a list of strings, each 4 strings represent a shot
             raise ValueError("bytes are of invalid form, shot data does not make sense (not a multiple of 4)")
         # technically the ? check is not necessary, but is left for clarity
-        if not "?" in bc and self._valid_barcode(bc):
-            self.barcode = bc
-        if not "?" in mc and self._valid_manual_code(mc):
-            self.manual_code = mc
-        if not "?" in tt and self._valid_target_type(tt):
-            self.target_type = tt
-        if not "?" in tn and self._valid_target_num(tn):
-            self.target_num = int(tn)
-        if not "?" in div and self._valid_div(div):
-            self.div = float(div)
-        if not "?" in sn and self._valid_shot_number(sn):
-            self.shots_num = int(sn)
-        self.shots = []
+        if not "?" in bc and Transmission._valid_barcode(bc):
+            trans.barcode = bc
+        if not "?" in mc and Transmission._valid_manual_code(mc):
+            trans.manual_code = mc
+        if not "?" in tt and Transmission._valid_target_type(tt):
+            trans.target_type = tt
+        if not "?" in tn and Transmission._valid_target_num(tn):
+            trans.target_num = int(tn)
+        if not "?" in div and Transmission._valid_div(div):
+            trans.div = float(div)
+        if not "?" in sn and Transmission._valid_shot_number(sn):
+            trans.shots_num = int(sn)
+        trans.shots = []
         for i in range(0, len(s), 4):
-            self.shots.append({
+            trans.shots.append({
                 "ring": float(s[i]) if not "?" in s[i] else None,
                 "div": float(s[i+1]) if not "?" in s[i+1] else None,
                 "x": int(s[i+2]) if not "?" in s[i+2] else None,
                 "y": int(s[i+3]) if not "?" in s[i+3] else None
             })
-        # maybe useful for later distinguishingg between cases:
+        #*Note: ↓ maybe useful later for distinguishing between cases: ↓
         #   ring is 0 and div is ? => missed shot
         #   ring > 0 und div is ? => manually corrected shot
         #   rind > 0 und Div > 0 => normal shot
-        return self
+        return trans
 
     def get_valid_shot_num(self) -> int:
         """Returns the number of valid shots in the transmission"""
@@ -131,9 +138,13 @@ class Transmission:
         """Returns the number of shots that were manually corrected"""
         return sum(1 for shot in self.shots if shot["ring"] is not None and shot["div"] is None)
 
-    def get_valid_shots(self) -> list[dict[str, float | int]]:
-        """Returns a list of valid shots in the transmission"""
-        return [shot for shot in self.shots if shot["ring"] is not None]
+    def get_valid_shots(self, fill: int=None) -> list[dict[str, float | int]]:
+        """Returns a list of valid shots in the transmission. \\
+        If `fill` is given, pads the list with empty shots to the given length."""
+        valid_shots = [shot for shot in self.shots if shot["ring"] is not None]
+        if fill is not None and len(valid_shots) < fill:
+            valid_shots += [{"ring": 0.0, "div": None, "x": None, "y": None} for _ in range(fill - len(valid_shots))]
+        return valid_shots
 
 def clear() -> None:
     """Clears the console"""
@@ -207,9 +218,9 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
     ws = wb.active
 
     # write wireframe
-    set_cell(ws, 2, 2, "Schuss", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # text
+    set_cell(ws, 2, 2, "Schuss", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # just text
     for i in range(len(shot_data)):
-        set_cell(ws, 3+i, 2, "Ringwert", pattern_header, b_left=True, b_right=True) # text
+        set_cell(ws, 3+i, 2, "Ringwert", pattern_header, b_left=True, b_right=True) # just text
         shot_range = f"C{3+i}:{chr(ord('C') + SERIES_SHOTS_NUM - 1)}{3+i}"
         if mode == 3:
             set_cell(ws, 3+i, 3+SERIES_SHOTS_NUM, f"=SUMPRODUCT(TRUNC({shot_range}))", b_left=True, b_right=True) # total sum
@@ -217,14 +228,14 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
             set_cell(ws, 3+i, 3+SERIES_SHOTS_NUM, f"=SUM({shot_range})", b_left=True, b_right=True) # total sum
     set_cell(ws, 3+len(shot_data), 3+SERIES_SHOTS_NUM, f"=SUM({chr(ord('C') + SERIES_SHOTS_NUM)}3:{chr(ord('C') + SERIES_SHOTS_NUM)}{3+len(shot_data)-1})", b_left=True, b_right=True, b_top=True, b_bottom=True) # total total sum
     for i in range(SERIES_SHOTS_NUM):
-        set_cell(ws, 2, 3+i, i+1, pattern_header, b_top=True, b_bottom=True, center_h=True) # text
+        set_cell(ws, 2, 3+i, i+1, pattern_header, b_top=True, b_bottom=True, center_h=True) # just text
         set_cell(ws, 3+len(shot_data), 3+i, b_top=True) # just border
     set_cell(ws, 3+len(shot_data), 2, b_top=True) # just border
-    set_cell(ws, 2, 3+SERIES_SHOTS_NUM, "Gesamt", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # text
+    set_cell(ws, 2, 3+SERIES_SHOTS_NUM, "Gesamt", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # just text
     ws.merge_cells(start_row=3+len(shot_data)+1, start_column=2, end_row=3+len(shot_data)+1, end_column=3)
-    set_cell(ws, 3+len(shot_data)+1, 2, "manuell korrigiert", pattern_mark1, center_h=True) # text
+    set_cell(ws, 3+len(shot_data)+1, 2, "manuell korrigiert", pattern_mark1, center_h=True) # just text
     ws.merge_cells(start_row=3+len(shot_data)+1, start_column=4, end_row=3+len(shot_data)+1, end_column=5)
-    set_cell(ws, 3+len(shot_data)+1, 4, "Fehlschuss", pattern_mark2, center_h=True) # text
+    set_cell(ws, 3+len(shot_data)+1, 4, "Fehlschuss", pattern_mark2, center_h=True) # just text
 
     # write data
     for r, series in enumerate(shot_data):
@@ -245,10 +256,6 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
 def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
-    global pattern1, pattern2, pattern3
-    pattern1 = openpyxl.styles.PatternFill(start_color="00c2c2c2", end_color="00c2c2c2", fill_type="solid") # Grey
-    pattern2 = openpyxl.styles.PatternFill(start_color="00abcdef", end_color="00abcdef", fill_type="solid") # Blue
-    pattern3 = openpyxl.styles.PatternFill(start_color="00ff0000", end_color="00ff0000", fill_type="solid") # Red
 
     shots_per_target = int(modal(options=[("", "1"), ("", "2"), ("", "5"), ("", "10")], msg="Bitte gebe die Anzahl der Schüsse pro Streifen an:", prompt="[1/2/5/10] >>> "))
 
@@ -292,22 +299,22 @@ def main(log: bool=False) -> None:
                             else:
                                 ser.write(CODE_ACK)
                                 print("Fehler: Übertragung fehlerhaft, bitte Kabel auf Wackelkontakt o.ä. prüfen und Serie neu erfassen")
-                                raise KeyboardInterrupt("hack to jump into catch block")
+                                raise KeyboardInterrupt("'hack' to jump into catch block")
                         else:
                             break
-                    trans = Transmission().from_bytes(data)
+                    trans = Transmission.from_bytes(data)
 
                     # extract valid data from transmission
                     if trans.get_valid_shot_num() > shots_per_target:
                         shotlist = trans.get_valid_shots()[:shots_per_target]
                     elif trans.get_valid_shot_num() < shots_per_target:
-                        shotlist = trans.get_valid_shots() + [{"ring": 0.0, "div": None, "x": None, "y": None} for _ in range(shots_per_target)]
+                        shotlist = trans.get_valid_shots(fill=shots_per_target)
                     else:
                         shotlist = trans.get_valid_shots()
 
                     # handle current transmission
                     memory += shotlist
-                    if len(memory) > SERIES_SHOTS_NUM: # case should never happen
+                    if len(memory) > SERIES_SHOTS_NUM: # case should theoretically never happen
                         result.append(memory[:SERIES_SHOTS_NUM]) # discard the rest
                         memory.clear()
                     elif len(memory) < SERIES_SHOTS_NUM:
@@ -328,7 +335,7 @@ def main(log: bool=False) -> None:
                 count += 1
                 print(f"Scheibe [{count}] übertragen, weitere einlegen oder Strg + c drücken, um Ergebnisse anzuzeigen")
                 sleep(0.5)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt: # This isn't an error, but the intended way to exit the program
             try:
                 print("KeyboardInterrupt")
                 ser.write(CODE_EXIT) # set device inactive
