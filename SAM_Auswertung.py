@@ -265,7 +265,7 @@ def main(log: bool=False) -> None:
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
-            print("start")
+            print("Gerät gefunden -> start")
             result: list[list[dict[str, float | int]]] = []
             memory: list[dict[str, float | int]] = []
             count = 0
