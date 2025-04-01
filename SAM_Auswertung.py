@@ -93,10 +93,16 @@ class Transmission:
         return bool(re.fullmatch(r"[0-9]{2}", sn))
 
     @staticmethod
-    def from_bytes(byt: bytes) -> Transmission:
+    def from_bytes(byt: bytes, log: bool=False) -> Transmission:
         """Parses the given bytes into a Transmission object and returns it."""
+        if log:
+            print(byt)
         trans = Transmission.create_empty()
         bc, mc, tt, tn, div, sn, *s = [part.decode("unicode-escape") for part in byt.split(CODE_CR)] # remove last empty string
+        s = [item for item in s if item] # remove empty strings
+        if log:
+            for item in [bc, mc, tt, tn, div, sn, s]:
+                print(item)
         if len(s) % 4 != 0: # s is a list of strings, each 4 strings represent a shot
             raise ValueError("bytes are of invalid form, shot data does not make sense (not a multiple of 4)")
         # technically the ? check is not necessary, but is left for clarity
@@ -192,7 +198,7 @@ def open_file(fname: str) -> None:
     else:
         print("Could not open the file")
 
-def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
+def save_data(shot_data: list[list[dict[str, float | int]]], mode: int, name_: str="") -> str:
     """Saves the data to an Excel file and returns the filename"""
     pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
     pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
@@ -238,6 +244,7 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
     set_cell(ws, 3+len(shot_data)+1, 4, "Fehlschuss", pattern_mark2, center_h=True) # just text
 
     # write data
+    set_cell(ws, 1, 1, name_)
     for r, series in enumerate(shot_data):
         for c, shot in enumerate(series):
             value = trunc(shot["ring"]) if mode == 2 else shot["ring"]
@@ -249,13 +256,22 @@ def save_data(shot_data: list[list[dict[str, float | int]]], mode: int) -> str:
                 fill = None
             set_cell(ws, 3+r, 3+c, value, fill, center_h=True)
 
-    fname = f"output_{nowtime()}.xlsx"
+    dir_year = datetime.now().strftime("%Y")
+    if not os.path.exists(dir_year):
+        os.mkdir(dir_year)
+    dir_month = os.path.join(dir_year, datetime.now().strftime("%m"))
+    if not os.path.exists(dir_month):
+        os.mkdir(dir_month)
+    fname = os.path.join(dir_month, f"output_{nowtime()}.xlsx")
     wb.save(fname)
-    return fname
+    return str(fname)
 
 def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
+
+    clear()
+    name_ = input("Name des Schützen eingeben: ")
 
     shots_per_target = int(modal(options=[("", "1"), ("", "2"), ("", "5"), ("", "10")], msg="Bitte gebe die Anzahl der Schüsse pro Streifen an:", prompt="[1/2/5/10] >>> "))
 
@@ -302,7 +318,7 @@ def main(log: bool=False) -> None:
                                 raise KeyboardInterrupt("'hack' to jump into catch block")
                         else:
                             break
-                    trans = Transmission.from_bytes(data)
+                    trans = Transmission.from_bytes(data, log=False)
 
                     # extract valid data from transmission
                     if trans.get_valid_shot_num() > shots_per_target:
@@ -339,7 +355,7 @@ def main(log: bool=False) -> None:
             try:
                 print("KeyboardInterrupt")
                 ser.write(CODE_EXIT) # set device inactive
-                fname = save_data(result, int(mode))
+                fname = save_data(result, int(mode), name_)
                 open_file(fname)
             except Exception as e:
                 print(f"Error occured during saving: {e}")
