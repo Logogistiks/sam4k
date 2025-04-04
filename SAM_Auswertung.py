@@ -170,7 +170,7 @@ def checksum_xor(byt: bytes) -> int:
 
 def modal(options: list[tuple[str, str]], msg: str=None, prompt: str=">>> ", retry: bool=True) -> str:
     """Prints a modal dialog and returns the selected option. \\
-    `options` should be passed as a list of tuples with the first element being the display text and the second element being the string the user has to enter to choose that option, this is case INsensitive
+    `options` should be passed as a list of tuples with the first element being the display text and the second element being the string the user has to enter to choose that option, this is case INsensitive. \\
     Example Use: \\
     `modal([("Option 1", "1"), ("Option 2", "2")], prompt="Select an option: ")` \\
     Returns `None` if the user enters an invalid option and `retry` is set to False"""
@@ -179,7 +179,7 @@ def modal(options: list[tuple[str, str]], msg: str=None, prompt: str=">>> ", ret
         clear()
         if msg is not None:
             print(msg)
-        for text, code in options:
+        for text, _ in options:
             if text:
                 print(text)
         ans = input(prompt if prompt.endswith(" ") else prompt + " ")
