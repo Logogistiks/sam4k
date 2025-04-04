@@ -24,7 +24,6 @@ COM_CODES = [
     CODE_NOBAR := b"\xB2"
 ]
 """Codes for communication with the SAM4000 device"""
-
 SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
 """How many shots should be saved in a series"""
 
