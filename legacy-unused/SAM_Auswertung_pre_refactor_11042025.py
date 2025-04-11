@@ -6,14 +6,11 @@ from copy import deepcopy
 from datetime import datetime
 from math import trunc
 from time import sleep
-from dataclasses import dataclass
 
 import openpyxl
 import openpyxl.cell
 import openpyxl.styles
 from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
-import beaupy
-from colorama import Fore
 
 COM_CODES = [
     CODE_STX := b"\x02",
@@ -27,26 +24,12 @@ COM_CODES = [
     CODE_NOBAR := b"\xB2"
 ]
 """Codes for communication with the SAM4000 device"""
-
 SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
 """How many shots should be saved in a series"""
 
-@dataclass
-class Shot:
-    """Represents a shot in the transmission"""
-    ring: float | None = None
-    div: float | None = None
-    x: int | None = None
-    y: int | None = None
-
-    def __str__(self) -> str:
-        """Returns a human readable representation of the Shot object"""
-        return f"Shot(ring={self.ring}, div={self.div}, x={self.x}, y={self.y})"
-
 class Transmission:
     "This class implements handling of a typical transmission by the SAM4000 device, which is received in bytes via serial connection."
-
-    def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[Shot]=None) -> None:
+    def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[dict[str, float | int]]=None) -> None:
         """Initializes a Transmission object with the given parameters, allthough usage of `Transmission.create_empty` or `Transmission.from_bytes` is recommended."""
         self.barcode: str = barcode
         self.manual_code: str = manual_code
@@ -54,7 +37,7 @@ class Transmission:
         self.target_num: int = target_num
         self.div: float = div
         self.shots_num: int = shots_num
-        self.shots: list[Shot] = shots
+        self.shots: list[dict[str, float | int]] = shots
 
     @staticmethod
     def create_empty() -> Transmission:
@@ -136,12 +119,12 @@ class Transmission:
             trans.shots_num = int(sn)
         trans.shots = []
         for i in range(0, len(s), 4):
-            trans.shots.append(Shot(
-                ring=float(s[i]) if not "?" in s[i] else None,
-                div=float(s[i+1]) if not "?" in s[i+1] else None,
-                x=int(s[i+2]) if not "?" in s[i+2] else None,
-                y=int(s[i+3]) if not "?" in s[i+3] else None
-            ))
+            trans.shots.append({
+                "ring": float(s[i]) if not "?" in s[i] else None,
+                "div": float(s[i+1]) if not "?" in s[i+1] else None,
+                "x": int(s[i+2]) if not "?" in s[i+2] else None,
+                "y": int(s[i+3]) if not "?" in s[i+3] else None
+            })
         #*Note: ↓ maybe useful later for distinguishing between cases: ↓
         #   ring is 0 and div is ? => missed shot
         #   ring > 0 und div is ? => manually corrected shot
@@ -150,22 +133,22 @@ class Transmission:
 
     def get_valid_shot_num(self) -> int:
         """Returns the number of valid shots in the transmission"""
-        return sum(1 for shot in self.shots if shot.ring is not None)
+        return sum(1 for shot in self.shots if shot["ring"] is not None)
 
     def get_invalid_shot_num(self) -> int:
         """Returns the number of invalid shots in the transmission"""
-        return sum(1 for shot in self.shots if shot.ring is None)
+        return sum(1 for shot in self.shots if shot["ring"] is None)
 
     def get_manual_corrected_num(self) -> int:
         """Returns the number of shots that were manually corrected"""
-        return sum(1 for shot in self.shots if shot.ring is not None and shot.div is None)
+        return sum(1 for shot in self.shots if shot["ring"] is not None and shot["div"] is None)
 
-    def get_valid_shots(self, fill: int=None) -> list[Shot]:
+    def get_valid_shots(self, fill: int=None) -> list[dict[str, float | int]]:
         """Returns a list of valid shots in the transmission. \\
         If `fill` is given, pads the list with empty shots to the given length."""
-        valid_shots = [shot for shot in self.shots if shot.ring is not None]
+        valid_shots = [shot for shot in self.shots if shot["ring"] is not None]
         if fill is not None and len(valid_shots) < fill:
-            valid_shots += [Shot(0.0, None, None, None) for _ in range(fill - len(valid_shots))]
+            valid_shots += [{"ring": 0.0, "div": None, "x": None, "y": None} for _ in range(fill - len(valid_shots))]
         return valid_shots
 
 def clear() -> None:
@@ -184,6 +167,24 @@ def checksum_xor(byt: bytes) -> int:
         chsum ^= b
     return chsum
 
+def modal(options: list[tuple[str, str]], msg: str=None, prompt: str=">>> ", retry: bool=True) -> str:
+    """Prints a modal dialog and returns the selected option. \\
+    `options` should be passed as a list of tuples with the first element being the display text and the second element being the string the user has to enter to choose that option, this is case INsensitive. \\
+    Example Use: \\
+    `modal([("Option 1", "1"), ("Option 2", "2")], prompt="Select an option: ")` \\
+    Returns `None` if the user enters an invalid option and `retry` is set to False"""
+    ans = None
+    while True:
+        clear()
+        if msg is not None:
+            print(msg)
+        for text, _ in options:
+            if text:
+                print(text)
+        ans = input(prompt if prompt.endswith(" ") else prompt + " ")
+        if ans in [code.lower() for _, code in options] or not retry:
+            return ans
+
 def open_file(fname: str) -> None:
     """Opens the file with the default program"""
     if os.name == "nt":
@@ -196,7 +197,7 @@ def open_file(fname: str) -> None:
     else:
         print("Could not open the file")
 
-def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
+def save_data(shot_data: list[list[dict[str, float | int]]], mode: int, name_: str="") -> str:
     """Saves the data to an Excel file and returns the filename"""
     pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
     pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
@@ -243,16 +244,16 @@ def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
 
     # write data
     set_cell(ws, 1, 1, name_)
-    for row, series in enumerate(shot_data):
-        for col, shot in enumerate(series):
-            value = trunc(shot.ring) if mode == 2 else shot.ring
-            if shot.ring > 0 and shot.div is None: # manually corrected
+    for r, series in enumerate(shot_data):
+        for c, shot in enumerate(series):
+            value = trunc(shot["ring"]) if mode == 2 else shot["ring"]
+            if shot["ring"] > 0 and shot["div"] is None: # manually corrected
                 fill = pattern_mark1
-            elif shot.ring == 0 and shot.div is None: # missed shot
+            elif shot["ring"] == 0 and shot["div"] is None: # missed shot
                 fill = pattern_mark2
             else: # normal shot
                 fill = None
-            set_cell(ws, 3+row, 3+col, value, fill, center_h=True)
+            set_cell(ws, 3+r, 3+c, value, fill, center_h=True)
 
     dir_year = datetime.now().strftime("%Y")
     if not os.path.exists(dir_year):
@@ -268,29 +269,20 @@ def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
 
-    name_ = beaupy.prompt("Name des Schützen eingeben:") # prompt text is cleared after execution
-    print(f"Name des Schützen eingeben:\n> {Fore.LIGHTCYAN_EX}{name_}{Fore.RESET}\n")
+    clear()
+    name_ = input("Name des Schützen eingeben: ")
 
-    print("Schussanzahl pro Streifen auswählen:")
-    shots_per_target = beaupy.select(["1", "2", "5", "10"], cursor="🢧", cursor_style="bright_yellow", cursor_index=3)
-    print(f"> {Fore.LIGHTCYAN_EX}{shots_per_target}{Fore.RESET}\n")
+    shots_per_target = int(modal(options=[("", "1"), ("", "2"), ("", "5"), ("", "10")], msg="Bitte gebe die Anzahl der Schüsse pro Streifen an:", prompt="[1/2/5/10] >>> "))
 
-    modes = [
-    "1) mit Teiler",
-    "2) ohne Teiler",
-    "3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren"
-    ]
-    print("Speicher-Modus auswählen:")
-    mode = int(beaupy.select(modes , cursor="🢧", cursor_style="bright_yellow", return_index=True)) + 1
-    print(f"> {Fore.LIGHTCYAN_EX}{modes[mode-1]}{Fore.RESET}\n")
+    mode = modal([("1) mit Teiler", "1"), ("2) ohne Teiler", "2"), ("3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren", "3")], msg="Bitte Modus auswählen:", prompt="[1/2/3] >>> ")
 
     PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
             print("Gerät gefunden -> start")
-            memory: list[Shot] = []
-            result: list[list[Shot]] = []
+            result: list[list[dict[str, float | int]]] = []
+            memory: list[dict[str, float | int]] = []
             count = 0
             while True:
                 ser.write(CODE_ENQ)
@@ -329,13 +321,14 @@ def main(log: bool=False) -> None:
 
                     # extract valid data from transmission
                     if trans.get_valid_shot_num() > shots_per_target:
-                        memory += trans.get_valid_shots()[:shots_per_target]
+                        shotlist = trans.get_valid_shots()[:shots_per_target]
                     elif trans.get_valid_shot_num() < shots_per_target:
-                        memory += trans.get_valid_shots(fill=shots_per_target)
+                        shotlist = trans.get_valid_shots(fill=shots_per_target)
                     else:
-                        memory += trans.get_valid_shots()
+                        shotlist = trans.get_valid_shots()
 
                     # handle current transmission
+                    memory += shotlist
                     if len(memory) > SERIES_SHOTS_NUM: # case should theoretically never happen
                         result.append(memory[:SERIES_SHOTS_NUM]) # discard the rest
                         memory.clear()
@@ -361,7 +354,7 @@ def main(log: bool=False) -> None:
             try:
                 print("KeyboardInterrupt")
                 ser.write(CODE_EXIT) # set device inactive
-                fname = save_data(result, mode, name_)
+                fname = save_data(result, int(mode), name_)
                 open_file(fname)
             except Exception as e:
                 print(f"Error occured during saving: {e}")
