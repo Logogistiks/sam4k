@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+#built in modules
 import os
 import re
 from copy import deepcopy
@@ -8,12 +9,17 @@ from math import trunc
 from time import sleep
 from dataclasses import dataclass
 
-import openpyxl
-import openpyxl.cell
-import openpyxl.styles
-from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
-import beaupy
-from colorama import Fore
+#external modules
+try:
+    import openpyxl
+    import openpyxl.cell
+    import openpyxl.styles
+    from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
+    import beaupy
+    from colorama import Fore
+except ImportError as e:
+    print(f"Error: {e}. Please install the required modules using 'pip install -r requirements.txt'")
+    raise SystemExit
 
 COM_CODES = [
     CODE_STX := b"\x02",
