@@ -63,7 +63,7 @@ class Shot:
         """Returns a human readable representation of the Shot object"""
         return f"Shot(ring={self.ring}, div={self.div}, x={self.x}, y={self.y})"
 
-class Transmission():
+class Transmission:
     "This class implements handling of a typical transmission by the SAM4000 device, which is received in bytes via serial connection."
 
     def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[Shot]=None) -> None:
