@@ -16,10 +16,12 @@ try:
     import openpyxl.styles
     from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
     import beaupy
-    from colorama import Fore
+    from colorama import init, Fore
 except ImportError as e:
     print(f"Error: {e}. Please install the required modules using 'pip install -r requirements.txt'")
     raise SystemExit
+
+init(convert=True)
 
 COM_CODES = [
     CODE_STX := b"\x02",
@@ -273,12 +275,20 @@ def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
 def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
+    
+    PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
+    if not os.path.exists(PORT): # checks if path is valid serial port before checking cwd
+        print(f"Gerät nicht an Port {PORT} gefunden, bitte Kabelverbindung prüfen und Gerätemanager checken (IT rufen) -> ende")
+        input("Drücke Enter zum Schließen")
+        raise SystemExit(1)
+    else:
+        print(f"Anschluss {PORT} gefunden\n")
 
-    name_ = beaupy.prompt("Name des Schützen eingeben:") # prompt text is cleared after execution
-    print(f"Name des Schützen eingeben:\n> {Fore.LIGHTCYAN_EX}{name_}{Fore.RESET}\n")
+    name_ = beaupy.prompt("Name des Schützen eintippen:") # prompt text is cleared after execution
+    print(f"Name des Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Fore.RESET}\n")
 
-    print("Schussanzahl pro Streifen auswählen:")
-    shots_per_target = beaupy.select(["1", "2", "5", "10"], cursor="🢧", cursor_style="bright_yellow", cursor_index=3)
+    print("Schussanzahl pro Streifen mit Pfeiltasten auswählen und mit Enter bestätigen:")
+    shots_per_target = beaupy.select([1, 2, 5, 10], cursor=">", cursor_style="bright_yellow", cursor_index=3)
     print(f"> {Fore.LIGHTCYAN_EX}{shots_per_target}{Fore.RESET}\n")
 
     modes = [
@@ -286,11 +296,10 @@ def main(log: bool=False) -> None:
     "2) ohne Teiler",
     "3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren"
     ]
-    print("Speicher-Modus auswählen:")
-    mode = int(beaupy.select(modes , cursor="🢧", cursor_style="bright_yellow", return_index=True)) + 1
+    print("Speicher-Modus mit Pfeiltasten auswählen und mit Enter bestätigen:")
+    mode = int(beaupy.select(modes , cursor=">", cursor_style="bright_yellow", return_index=True)) + 1
     print(f"> {Fore.LIGHTCYAN_EX}{modes[mode-1]}{Fore.RESET}\n")
 
-    PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
     with Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False) as ser:
         try:
             ser.write(CODE_NOBAR)
