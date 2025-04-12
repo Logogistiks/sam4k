@@ -63,7 +63,7 @@ class Shot:
         """Returns a human readable representation of the Shot object"""
         return f"Shot(ring={self.ring}, div={self.div}, x={self.x}, y={self.y})"
 
-class Transmission:
+class Transmission():
     "This class implements handling of a typical transmission by the SAM4000 device, which is received in bytes via serial connection."
 
     def __init__(self, barcode: str=None, manual_code: str=None, target_type: str=None, target_num: int=None, div: float=None, shots_num: int=None, shots: list[Shot]=None) -> None:
@@ -286,7 +286,9 @@ def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
 
 def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
-        raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
+        print("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
+        input("Drücke Enter zum Beenden")
+        raise SystemExit(3)
 
     if not os.path.exists(PORT): # checks if path is valid serial port before checking cwd
         print(f"Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
