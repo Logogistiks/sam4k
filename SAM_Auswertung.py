@@ -19,6 +19,7 @@ try:
     import openpyxl.cell
     import openpyxl.styles
     from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
+    import serial.tools.list_ports
     import beaupy
     from colorama import init, Fore
 except ImportError as e:
@@ -26,6 +27,16 @@ except ImportError as e:
     raise SystemExit
 
 init(convert=True)
+
+#################### Begin Basic Settings ####################
+
+PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
+"""The serial port of the SAM4000 device"""
+
+SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
+"""How many shots should be saved in a series (one line in the excel file)"""
+
+#################### Begin Program Logic #####################
 
 COM_CODES = [
     CODE_STX := b"\x02",
@@ -39,9 +50,6 @@ COM_CODES = [
     CODE_NOBAR := b"\xB2"
 ]
 """Codes for communication with the SAM4000 device"""
-
-SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
-"""How many shots should be saved in a series"""
 
 @dataclass
 class Shot:
@@ -279,14 +287,13 @@ def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
 def main(log: bool=False) -> None:
     if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
         raise ValueError("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
-    
-    PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
+
     if not os.path.exists(PORT): # checks if path is valid serial port before checking cwd
-        print(f"Gerät nicht an Port {PORT} gefunden, bitte Kabelverbindung prüfen und Gerätemanager checken (IT rufen) -> ende")
-        input("Drücke Enter zum Schließen")
+        print(f"Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
+        for port in sorted([port.name for port in serial.tools.list_ports.comports()]):
+            print(f"  - {port}")
+        input("\nDrücke Enter zum Schließen")
         raise SystemExit(1)
-    else:
-        print(f"Anschluss {PORT} gefunden\n")
 
     name_ = beaupy.prompt("Name des Schützen eintippen:") # prompt text is cleared after execution
     print(f"Name des Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Fore.RESET}\n")
@@ -315,7 +322,9 @@ def main(log: bool=False) -> None:
                 ser.write(CODE_ENQ)
                 response = ser.read(1)
                 if response == b"":
-                    continue
+                    print(f"Keine Antwort vom Gerät erhalten, mögliche Ursachen:\n  - Gerät ist nicht eingeschaltet\n  - Gerät ist nicht angeschlossen\n  - Anschluss {PORT} ist nicht richtig")
+                    input("Enter zum Beenden")
+                    raise SystemExit(2)
                 if response == CODE_NAK: # no result
                     sleep(0.5)
                     continue
