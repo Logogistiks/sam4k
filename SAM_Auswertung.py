@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 __all__ = ["COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "checksum_xor", "open_file", "save_data"]
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
 
 #built in modules
@@ -26,7 +26,7 @@ except ImportError as e:
     print(f"Error: {e}. Please install the required modules using 'pip install -r requirements.txt'")
     raise SystemExit
 
-init(convert=True)
+init(convert=True) # colorama init for Windows compatibility
 
 #################### Begin Basic Settings ####################
 
@@ -80,6 +80,21 @@ class Transmission:
     def create_empty() -> Transmission:
         """returns an empty Transmission object with attributes of respective type instead of `None`"""
         return Transmission(barcode="", manual_code="", target_type="", target_num=0, div=0.0, shots_num=0, shots=[])
+
+    @staticmethod
+    def example() -> Transmission:
+        """returns an example Transmission object with filled in dummy data"""
+        return Transmission(barcode="01236789", manual_code="98763210", target_type="LG", target_num=10, div=1.0, shots_num=10, shots=[
+            Shot(ring=8.6, div=532.7, x=-236, y=508),
+            Shot(ring=9.0, div=500.0, x=-200, y=500),
+            Shot(ring=4.9, div=276.0, x=-154, y=525),
+            Shot(ring=0.0, div=None, x=None, y=None),  # missed shot
+            Shot(ring=10.0, div=0.0, x=-111, y=500),
+            Shot(ring=9.5, div=None, x=-100, y=500),  # manually corrected shot
+            Shot(ring=8.1, div=396.0, x=-52, y=-156),
+            Shot(ring=7.0, div=400.0, x=-50, y=-200),
+            Shot(ring=6.5, div=350.0, x=-25, y=-250),
+            Shot(ring=5.0, div=300.0, x=-10, y=-300)])
 
     def __str__(self) -> str:
         """Returns a human readable representation of the Transmission object"""
