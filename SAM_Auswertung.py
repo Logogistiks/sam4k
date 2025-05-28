@@ -33,8 +33,12 @@ init(convert=True) # colorama init for Windows compatibility
 PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
 """The serial port of the SAM4000 device"""
 
-SERIES_SHOTS_NUM = 10 # should be 1, 2, 5, or a multiple of 10
-"""How many shots should be saved in a series (one line in the excel file)"""
+SHOTS_PER_SERIES = 10 # should be 1, 2, 5, or a multiple of 10
+"""How many shots should be saved in a series (one row in the excel file)"""
+
+pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
+pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
+pattern_mark2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
 
 #################### Begin Program Logic #####################
 
@@ -231,52 +235,45 @@ def open_file(fname: str) -> None:
     else:
         print("Could not open the file")
 
-def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
-    """Saves the data to an Excel file and returns the filename"""
-    pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
-    pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
-    pattern_mark2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
+def set_cell(ws, row: int, col: int, value=None, fill=None, b_left: bool=False, b_right: bool=False, b_top: bool=False, b_bottom: bool=False, center_h: bool=False, center_v: bool=False) -> None:
+    """Sets the value of a cell and applies the given fill and border settings"""
+    cell: openpyxl.cell.Cell = ws.cell(row, col)
+    if value is not None:
+        cell.value = value
+    if fill is not None:
+        cell.fill = fill
+    if any((b_left, b_right, b_top, b_bottom)):
+        cell.border = openpyxl.styles.Border(
+            left=openpyxl.styles.Side(style="thin") if b_left else None,
+            right=openpyxl.styles.Side(style="thin") if b_right else None,
+            top=openpyxl.styles.Side(style="thin") if b_top else None,
+            bottom=openpyxl.styles.Side(style="thin") if b_bottom else None)
+    if any((center_h, center_v)):
+        cell.alignment = openpyxl.styles.Alignment(horizontal="center" if center_h else None, vertical="center" if center_v else None)
 
-    def set_cell(ws, row: int, col: int, value=None, fill=None, b_left: bool=False, b_right: bool=False, b_top: bool=False, b_bottom: bool=False, center_h: bool=False, center_v: bool=False) -> None:
-        """Sets the value of a cell and applies the given fill and border settings"""
-        cell: openpyxl.cell.Cell = ws.cell(row, col)
-        if value is not None:
-            cell.value = value
-        if fill is not None:
-            cell.fill = fill
-        if any((b_left, b_right, b_top, b_bottom)):
-            cell.border = openpyxl.styles.Border(
-                left=openpyxl.styles.Side(style="thin") if b_left else None,
-                right=openpyxl.styles.Side(style="thin") if b_right else None,
-                top=openpyxl.styles.Side(style="thin") if b_top else None,
-                bottom=openpyxl.styles.Side(style="thin") if b_bottom else None)
-        if any((center_h, center_v)):
-            cell.alignment = openpyxl.styles.Alignment(horizontal="center" if center_h else None, vertical="center" if center_v else None)
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-
-    # write wireframe
+def draw_wireframe(ws, shot_data: list[list[Shot]], mode: int) -> None:
+    """Draws the wireframe on the excel worksheet"""
     set_cell(ws, 2, 2, "Schuss", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # just text
     for i in range(len(shot_data)):
         set_cell(ws, 3+i, 2, "Ringwert", pattern_header, b_left=True, b_right=True) # just text
-        shot_range = f"C{3+i}:{chr(ord('C') + SERIES_SHOTS_NUM - 1)}{3+i}"
+        shot_range = f"C{3+i}:{chr(ord('C') + SHOTS_PER_SERIES - 1)}{3+i}"
         if mode == 3:
-            set_cell(ws, 3+i, 3+SERIES_SHOTS_NUM, f"=SUMPRODUCT(TRUNC({shot_range}))", b_left=True, b_right=True) # total sum
+            set_cell(ws, 3+i, 3+SHOTS_PER_SERIES, f"=SUMPRODUCT(TRUNC({shot_range}))", b_left=True, b_right=True) # total sum
         else:
-            set_cell(ws, 3+i, 3+SERIES_SHOTS_NUM, f"=SUM({shot_range})", b_left=True, b_right=True) # total sum
-    set_cell(ws, 3+len(shot_data), 3+SERIES_SHOTS_NUM, f"=SUM({chr(ord('C') + SERIES_SHOTS_NUM)}3:{chr(ord('C') + SERIES_SHOTS_NUM)}{3+len(shot_data)-1})", b_left=True, b_right=True, b_top=True, b_bottom=True) # total total sum
-    for i in range(SERIES_SHOTS_NUM):
+            set_cell(ws, 3+i, 3+SHOTS_PER_SERIES, f"=SUM({shot_range})", b_left=True, b_right=True) # total sum
+    set_cell(ws, 3+len(shot_data), 3+SHOTS_PER_SERIES, f"=SUM({chr(ord('C') + SHOTS_PER_SERIES)}3:{chr(ord('C') + SHOTS_PER_SERIES)}{3+len(shot_data)-1})", b_left=True, b_right=True, b_top=True, b_bottom=True) # total total sum
+    for i in range(SHOTS_PER_SERIES):
         set_cell(ws, 2, 3+i, i+1, pattern_header, b_top=True, b_bottom=True, center_h=True) # just text
         set_cell(ws, 3+len(shot_data), 3+i, b_top=True) # just border
     set_cell(ws, 3+len(shot_data), 2, b_top=True) # just border
-    set_cell(ws, 2, 3+SERIES_SHOTS_NUM, "Gesamt", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # just text
+    set_cell(ws, 2, 3+SHOTS_PER_SERIES, "Gesamt", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True) # just text
     ws.merge_cells(start_row=3+len(shot_data)+1, start_column=2, end_row=3+len(shot_data)+1, end_column=3)
     set_cell(ws, 3+len(shot_data)+1, 2, "manuell korrigiert", pattern_mark1, center_h=True) # just text
     ws.merge_cells(start_row=3+len(shot_data)+1, start_column=4, end_row=3+len(shot_data)+1, end_column=5)
     set_cell(ws, 3+len(shot_data)+1, 4, "Fehlschuss", pattern_mark2, center_h=True) # just text
 
-    # write data
+def fill_wireframe(ws, shot_data: list[list[Shot]], mode: int, name_: str) -> None:
+    """Fills the wireframe in the worksheet with the data"""
     set_cell(ws, 1, 1, name_)
     for row, series in enumerate(shot_data):
         for col, shot in enumerate(series):
@@ -289,35 +286,50 @@ def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
                 fill = None
             set_cell(ws, 3+row, 3+col, value, fill, center_h=True)
 
+def save_data(shot_data: list[list[Shot]], mode: int, name_: str="") -> str:
+    """Saves the data to an Excel file and returns the filepath"""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    draw_wireframe(ws, shot_data, mode)
+    fill_wireframe(ws, shot_data, mode, name_)
+
+    # save to file, sorted by year and month
+
     dir_year = datetime.now().strftime("%Y")
     if not os.path.exists(dir_year):
         os.mkdir(dir_year)
+
     dir_month = os.path.join(dir_year, datetime.now().strftime("%m"))
     if not os.path.exists(dir_month):
         os.mkdir(dir_month)
+
     fname = os.path.join(dir_month, f"output_{nowtime()}.xlsx")
     wb.save(fname)
     return str(fname)
 
 def main(log: bool=False) -> None:
-    if SERIES_SHOTS_NUM not in (1, 2, 5, 10) and SERIES_SHOTS_NUM % 10 != 0:
-        print("The number of shots in a series (SERIES_SHOTS_NUM) must be 1, 2, 5, or a multiple of 10")
+    if SHOTS_PER_SERIES not in (1, 2, 5, 10) and SHOTS_PER_SERIES % 10 != 0:
+        print("The number of shots in a series (SHOTS_PER_SERIES) must be 1, 2, 5, or a multiple of 10")
         input("Drücke Enter zum Beenden")
         raise SystemExit(3)
 
-    if not os.path.exists(PORT): # checks if path is valid serial port before checking cwd
+    # check if the configured serial port exists
+    if not os.path.exists(PORT): # os.path.exists() checks if argument is valid serial port *before* checking cwd
         print(f"Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
         for port in sorted([port.name for port in serial.tools.list_ports.comports()]):
             print(f"  - {port}")
         input("\nDrücke Enter zum Schließen")
         raise SystemExit(1)
 
+    # get person name
     name_ = beaupy.prompt("Name des Schützen eintippen:") # prompt text is cleared after execution
     print(f"Name des Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Fore.RESET}\n")
 
+    # get expected number of shots per 
     print("Schussanzahl pro Streifen mit Pfeiltasten auswählen und mit Enter bestätigen:")
-    shots_per_target = beaupy.select([1, 2, 5, 10], cursor=">", cursor_style="bright_yellow", cursor_index=3)
-    print(f"> {Fore.LIGHTCYAN_EX}{shots_per_target}{Fore.RESET}\n")
+    SHOTS_PER_STRIP = beaupy.select([1, 2, 5, 10], cursor=">", cursor_style="bright_yellow", cursor_index=3)
+    print(f"> {Fore.LIGHTCYAN_EX}{SHOTS_PER_STRIP}{Fore.RESET}\n")
 
     modes = [
     "1) mit Teiler",
@@ -373,18 +385,18 @@ def main(log: bool=False) -> None:
                     trans = Transmission.from_bytes(data, log=False)
 
                     # extract valid data from transmission
-                    if trans.get_valid_shot_num() > shots_per_target:
-                        memory += trans.get_valid_shots()[:shots_per_target]
-                    elif trans.get_valid_shot_num() < shots_per_target:
-                        memory += trans.get_valid_shots(fill=shots_per_target)
+                    if trans.get_valid_shot_num() > SHOTS_PER_STRIP: # got more shots than expected
+                        memory += trans.get_valid_shots()[:SHOTS_PER_STRIP] # discard surplus shots
+                    elif trans.get_valid_shot_num() < SHOTS_PER_STRIP: # got less shots than expected
+                        memory += trans.get_valid_shots(fill=SHOTS_PER_STRIP) # fill with empty shots
                     else:
                         memory += trans.get_valid_shots()
 
                     # handle current transmission
-                    if len(memory) > SERIES_SHOTS_NUM: # case should theoretically never happen
-                        result.append(memory[:SERIES_SHOTS_NUM]) # discard the rest
+                    if len(memory) > SHOTS_PER_SERIES: # case should theoretically never happen, SHOTS_PER_SERIES should be a multiple of SHOTS_PER_STRIP
+                        result.append(memory[:SHOTS_PER_SERIES]) # discard the rest
                         memory.clear()
-                    elif len(memory) < SERIES_SHOTS_NUM:
+                    elif len(memory) < SHOTS_PER_SERIES:
                         count += 1
                         print(f"Scheibe [{count}] übertragen, weitere einlegen oder Strg + c drücken, um Ergebnisse anzuzeigen")
                         continue
@@ -393,12 +405,6 @@ def main(log: bool=False) -> None:
                         memory.clear()
 
                     ser.write(CODE_ACK) # com cycle finished
-                    #* Note:
-                    # it is guaranteed that SERIES_SHOTS_NUM is a multiple of shots_per_target
-                    # if num valid shots is more than shots per target, discard the rest
-                    # if num valid shots is less than shots per target, fill with 0
-                    # if this is equal to series num, save shots to result
-                    # if this is less than series num, save shots to memory
                 count += 1
                 print(f"Scheibe [{count}] übertragen, weitere einlegen oder Strg + c drücken, um Ergebnisse anzuzeigen")
                 sleep(0.5)
@@ -415,3 +421,8 @@ def main(log: bool=False) -> None:
 
 if __name__ == "__main__":
     main(log=False)
+
+### Terminology in this project ###
+# Target : @
+# Strip  : |@ @ @ @ @|    (1 thing feeded into the device, contains <SHOTS_PER_STRIP> shots)
+# Series : [@ ... @]      (1 row in the output file, contains <SHOTS_PER_SERIES> shots)
