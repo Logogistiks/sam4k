@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 __all__ = ["COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "checksum_xor", "open_file", "save_data"]
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
 
 #built in modules
