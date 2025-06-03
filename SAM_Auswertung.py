@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 __all__ = ["COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "checksum_xor", "open_file", "save_data"]
-__version__ = "1.2.3"
+__version__ = "2.0.0"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
 
 #built in modules
@@ -26,7 +26,7 @@ try:
 except ImportError as e:
     print(f"Fehler beim importieren: {e}.\n Bitte die erforderlichen Module mit 'pip install -r requirements.txt' installieren.")
     input("Drücke Enter zum Beenden...")
-    raise SystemExit
+    raise SystemExit # todo add error code
 
 init(convert=True) # colorama init for Windows compatibility
 
@@ -273,7 +273,7 @@ class MemoryHandler:
     def finalize(self) -> None:
         """Prepares the memory for saving to file."""
 
-        # remove empty people, can happen if pressed Enter immediately after entering a name
+        # remove empty people, can happen if pressed `n` immediately after entering a name
         self.MEM_long = {k: v for k, v in self.MEM_long.items() if v}
 
 def log(content: str | bytes) -> None:
@@ -506,7 +506,7 @@ def main() -> None:
         # get person name
         clear()
         name_: str = beaupy.prompt(f"Name des {mem.person_count+1}. Schützen eintippen:") # prompt text is cleared after execution
-        print(f"Name des {mem.person_count+1}. Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Style.RESET_ALL}\n\n")
+        print(f"Name des {mem.person_count+1}. Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Style.RESET_ALL}\n\nersten Streifen einlegen\n\n") # todo nachricht ändern
         mem.update_person(name_)
 
         FLAG_next_user = False # flag to jump out of inner while loop to next user
@@ -525,14 +525,16 @@ def main() -> None:
             # NAK => no new data, check keypresses for exit or next person
             if response == CODE_NAK:
                 keys_pressed = record_keypresses(0.5) # detect exit-keypress during 0.5s delay between ENQs, as recommended by manual p. 31
-                if keyboard.Key.esc in keys_pressed and keyboard.Key.enter in keys_pressed: # ignore when both pressed
-                    continue
-                if keyboard.Key.enter in keys_pressed: # enter => new person
+                if keyboard.Key.esc in keys_pressed and (keyboard.KeyCode.from_char("n") in keys_pressed or keyboard.KeyCode.from_char("N") in keys_pressed): # ignore when both pressed
+                    continue #todo shorten
+                elif keyboard.KeyCode.from_char("n") in keys_pressed or keyboard.KeyCode.from_char("N") in keys_pressed: # enter => new person
                     FLAG_next_user = True # jump out of inner while loop
                     continue
-                if keyboard.Key.esc in keys_pressed: # save data and exit
+                elif keyboard.Key.esc in keys_pressed: # save data and exit
                     FLAG_next_user = True # jump out of inner while loop
                     FLAG_save_exit = True # jump out of outer while loop
+                    continue
+                else:
                     continue
 
             # STX => new data being transmitted, start receiving
@@ -546,8 +548,8 @@ def main() -> None:
                 ser.write(CODE_ACK) # com cycle finished
 
             print(f"Person {mem.person_count} ({Fore.LIGHTYELLOW_EX}{mem.current_person}{Style.RESET_ALL}), Streifen {Fore.LIGHTRED_EX}{mem.strip_count}{Style.RESET_ALL} verarbeitet. {Style.BRIGHT}Weiteren einlegen{Style.RESET_ALL} oder per Tastendruck fortfahren:")
-            print(f"    - Drücke {Back.WHITE + Fore.BLACK}<Enter>{Style.RESET_ALL}, um einen neuen Schützen zu erfassen")
-            print(f"    - Drücke {Back.WHITE + Fore.BLACK}<Escape>{Style.RESET_ALL}, um die Ergebnisse zu speichern und das Programm zu beenden\n")
+            print(f"    - Drücke {Back.WHITE + Fore.BLACK}<n>{Style.RESET_ALL}, um einen neuen Schützen zu erfassen")
+            print(f"    - Drücke {Back.WHITE + Fore.BLACK}<Esc>{Style.RESET_ALL}, um die Ergebnisse zu speichern und das Programm zu beenden\n")
 
     ser.write(CODE_EXIT) # set device inactive
     ser.close()
@@ -558,7 +560,7 @@ def main() -> None:
         input("Drücke Enter zum Beenden...")
         raise SystemExit(4)
 
-    fname = save_data(mem, mode, name_)
+    fname = save_data(mem, mode)
     open_file(fname)
 
 if __name__ == "__main__":
