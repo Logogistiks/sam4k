@@ -19,7 +19,7 @@ try:
     import openpyxl.cell
     import openpyxl.styles
     from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
-    import serial.tools.list_ports
+    from serial.tools import list_ports
     import beaupy
     from colorama import init, Fore, Back, Style
     from pynput import keyboard
@@ -344,7 +344,7 @@ def draw_header(ws, start_cell: tuple[int]=(1, 1)) -> tuple[int]:
     `start_cell` [row, col] is the top left cell of this header, Excel cells are 1-indexed."""
 
     shift_row, shift_col = start_cell[0] - 1, start_cell[1] - 1
-    if shift_col >= 26:
+    if shift_col >= 26 - 3 - SHOTS_PER_SERIES: # 3 for wireframe
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # date and time
@@ -367,7 +367,7 @@ def draw_wireframe(ws, shot_data: list[list[Shot]], mode: int, start_cell: tuple
     `start_cell` [row, col] is the top left cell of this wireframe, Excel cells are 1-indexed."""
 
     shift_row, shift_col = start_cell[0] - 1, start_cell[1] - 1
-    if shift_col >= 26:
+    if shift_col >= 26 - 3 - SHOTS_PER_SERIES: # 3 for wireframe
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # table head, top left
@@ -409,7 +409,7 @@ def fill_wireframe(ws, name_: str, shot_data: list[list[Shot]], mode: int, start
     `start_cell` [row, col] is the top left cell of this wireframe, Excel cells are 1-indexed."""
 
     shift_row, shift_col = start_cell[0] - 1, start_cell[1] - 1
-    if shift_col >= 26:
+    if shift_col >= 26 - 3 - SHOTS_PER_SERIES: # 3 for wireframe
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # name, top left outside
@@ -469,9 +469,10 @@ def main() -> None:
         raise SystemExit(3)
 
     # check if the configured serial port exists
-    if not os.path.exists(PORT): # os.path.exists() checks if argument is valid serial port *before* checking cwd
+    ports_available = [port.name for port in list_ports.comports()]
+    if not PORT in ports_available:
         print(f"Fehler: Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
-        for port in sorted([port.name for port in serial.tools.list_ports.comports()]):
+        for port in sorted(ports_available):
             print(f"  - {port}")
         input("\nDrücke Enter zum Beenden...")
         raise SystemExit(1)
