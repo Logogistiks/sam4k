@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 __all__ = ["COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "checksum_xor", "open_file", "save_data"]
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
 
 #built in modules
@@ -26,11 +26,11 @@ try:
 except ImportError as e:
     print(f"Fehler beim importieren: {e}.\n Bitte die erforderlichen Module mit 'pip install -r requirements.txt' installieren.")
     input("Drücke Enter zum Beenden...")
-    raise SystemExit # todo add error code
+    raise SystemExit(2)
 
 init(convert=True) # colorama init for Windows compatibility
 
-#################### Begin Basic Settings ####################
+#################### Begin User Settings ####################
 
 PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
 """The serial port of the SAM4000 device"""
@@ -46,6 +46,7 @@ LOG_TRANSMISSIONS = False
 """Whether to log the raw bytes received from the SAM4000 device to a file"""
 
 CHSUM_RETRY = 3
+"""How many times to retry fetching the transmission data from the device"""
 
 #################### Begin Program Logic #####################
 
@@ -305,7 +306,7 @@ def checksum_xor(byt: bytes) -> int:
 def record_keypresses(t: float=1) -> list[keyboard.Key | keyboard.KeyCode]:
     """Records all keyboard activity in the next `t` seconds synchronously, blocking the program flow."""
     pressed = []
-    listener = keyboard.Listener(on_press=None, on_release=pressed.append) # looks a bit cursed
+    listener = keyboard.Listener(on_press=None, on_release=pressed.append, suppress=True) # looks a bit cursed
     listener.start()
     sleep(t)
     listener.stop()
@@ -413,12 +414,12 @@ def fill_wireframe(ws, name_: str, shot_data: list[list[Shot]], mode: int, start
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # name, top left outside
-    set_cell(ws, shift_row + 2, shift_col + 1, name_)
+    set_cell(ws, shift_row + 2, shift_col + 1, name_, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
 
     # fill data row by row
     for row, series in enumerate(shot_data):
         # name, left outside
-        set_cell(ws, shift_row + 3 + row, shift_col + 1, name_)
+        set_cell(ws, shift_row + 3 + row, shift_col + 1, name_, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
 
         # fill data cell by cell
         for col, shot in enumerate(series):
@@ -466,7 +467,7 @@ def main() -> None:
     if SHOTS_PER_SERIES not in (1, 2, 5, 10) and SHOTS_PER_SERIES % 10 != 0:
         print("Konfigurationsfehler: Schussanzahl pro Serie (SHOTS_PER_SERIES) muss 1, 2, 5, oder ein Vielfaches von 10 sein")
         input("Drücke Enter zum Beenden...")
-        raise SystemExit(3)
+        raise SystemExit(10)
 
     # check if the configured serial port exists
     ports_available = [port.name for port in list_ports.comports()]
@@ -475,7 +476,7 @@ def main() -> None:
         for port in sorted(ports_available):
             print(f"  - {port}")
         input("\nDrücke Enter zum Beenden...")
-        raise SystemExit(1)
+        raise SystemExit(20)
 
     # get expected number of shots per strip
     print("Schussanzahl pro Streifen mit Pfeiltasten auswählen und mit Enter bestätigen:")
@@ -495,6 +496,10 @@ def main() -> None:
     # setup serial connection and memory handler
     ser = Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False)
     mem = MemoryHandler(SHOTS_PER_STRIP)
+
+    key_n = keyboard.KeyCode.from_char("n")
+    key_N = keyboard.KeyCode.from_char("N")
+
     ser.write(CODE_NOBAR)
     print("Gerät gefunden -> start")
     sleep(1) # wait so user can read output
@@ -506,7 +511,7 @@ def main() -> None:
         # get person name
         clear()
         name_: str = beaupy.prompt(f"Name des {mem.person_count+1}. Schützen eintippen:") # prompt text is cleared after execution
-        print(f"Name des {mem.person_count+1}. Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Style.RESET_ALL}\n\nersten Streifen einlegen\n\n") # todo nachricht ändern
+        print(f"Name des {mem.person_count+1}. Schützen eintippen:\n> {Fore.LIGHTCYAN_EX}{name_}{Style.RESET_ALL}\n\nStreifen können nun eingelegt werden\n\n")
         mem.update_person(name_)
 
         FLAG_next_user = False # flag to jump out of inner while loop to next user
@@ -520,14 +525,14 @@ def main() -> None:
             if response == b"":
                 print(f"Keine Antwort vom Gerät erhalten, mögliche Ursachen:\n  - Gerät ist nicht eingeschaltet\n  - Gerät ist nicht angeschlossen\n  - Anschluss {PORT} ist nicht richtig")
                 input("Drücke Enter zum Beenden...")
-                raise SystemExit(2) # todo overhaul error codes
+                raise SystemExit(30)
 
             # NAK => no new data, check keypresses for exit or next person
             if response == CODE_NAK:
                 keys_pressed = record_keypresses(0.5) # detect exit-keypress during 0.5s delay between ENQs, as recommended by manual p. 31
-                if keyboard.Key.esc in keys_pressed and (keyboard.KeyCode.from_char("n") in keys_pressed or keyboard.KeyCode.from_char("N") in keys_pressed): # ignore when both pressed
-                    continue #todo shorten
-                elif keyboard.KeyCode.from_char("n") in keys_pressed or keyboard.KeyCode.from_char("N") in keys_pressed: # enter => new person
+                if keyboard.Key.esc in keys_pressed and (key_n in keys_pressed or key_N in keys_pressed): # ignore when both pressed
+                    continue
+                elif key_n in keys_pressed or key_N in keys_pressed: # enter => new person
                     FLAG_next_user = True # jump out of inner while loop
                     continue
                 elif keyboard.Key.esc in keys_pressed: # save data and exit
@@ -558,7 +563,7 @@ def main() -> None:
     if not mem.MEM_long:
         print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
         input("Drücke Enter zum Beenden...")
-        raise SystemExit(4)
+        raise SystemExit(0)
 
     fname = save_data(mem, mode)
     open_file(fname)
@@ -573,6 +578,7 @@ if __name__ == "__main__":
             ser.close()
         print(f"nicht abgefangener Fehler aufgetreten: {e}")
         input("Drücke Enter zum Beenden...")
+        raise SystemExit(99)
 
 ### Terminology in this project ###
 # Target : @
