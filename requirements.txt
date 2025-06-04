@@ -2,3 +2,4 @@ pyserial
 openpyxl
 beaupy
 colorama
+pynput
