@@ -6,7 +6,7 @@ This section is intended for developers setting up / maintaining the project, an
 
 - #### [ℹ️Overview](#overview)
 - #### [📦Installation & Setup](#installation--setup)
-- #### [📫Communication with SAM4000](#communication-with-sam4000)
+- #### [📫Communication with SAM4000](#communication-with-sam4000-1)
 - #### [🛑Exit codes](#exit-codes)
 - #### [📚Documentation](#documentation)
 
