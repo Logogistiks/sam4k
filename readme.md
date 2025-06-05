@@ -9,7 +9,7 @@ Hauptgegenstand ist die Datei [SAM_Auswertung.py](https://github.com/Logogistiks
 ## 📋Inhaltsverzeichnis
 
 - #### [📖Bedienung](#bedienung)
-- #### [🛠️Für Entwickler](#für-entwickler-1)
+- #### [🛠️Für Entwickler](#%EF%B8%8Ffür-entwickler-1)
 
 ## 📖Bedienung
 
