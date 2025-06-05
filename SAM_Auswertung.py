@@ -38,9 +38,9 @@ PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
 SHOTS_PER_SERIES = 10 # should be 1, 2, 5, or a multiple of 10
 """How many shots should be saved in a series (one row in the excel file)"""
 
-pattern_header = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
-pattern_mark1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
-pattern_mark2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
+PATTERN_HEADER = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
+PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
+PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
 
 LOG_TRANSMISSIONS = False
 """Whether to log the raw bytes received from the SAM4000 device to a file"""
@@ -349,15 +349,15 @@ def draw_header(ws, start_cell: tuple[int]=(1, 1)) -> tuple[int]:
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # date and time
-    set_cell(ws, shift_row + 2, shift_col + 2, nowtime(pretty=True), pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True)
+    set_cell(ws, shift_row + 2, shift_col + 2, nowtime(pretty=True), PATTERN_HEADER, b_left=True, b_right=True, b_top=True, b_bottom=True)
     set_cell(ws, shift_row + 2, shift_col + 3, b_left=True, b_right=True, b_top=True, b_bottom=True) # just border
     ws.merge_cells(start_row=shift_row + 2, start_column=shift_col + 2, end_row=shift_row + 2, end_column=shift_col + 3)
 
     # legend for colors
-    set_cell(ws, shift_row + 2, shift_col + 5, "manuell korrigiert", pattern_mark1, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
+    set_cell(ws, shift_row + 2, shift_col + 5, "manuell korrigiert", PATTERN_MARK1, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
     set_cell(ws, shift_row + 2, shift_col + 6, b_left=True, b_right=True, b_top=True, b_bottom=True) # just border
     ws.merge_cells(start_row=shift_row + 2, start_column=shift_col + 5, end_row=shift_row + 2, end_column=shift_col + 6)
-    set_cell(ws, shift_row + 2, shift_col + 8, "Fehlschuss", pattern_mark2, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
+    set_cell(ws, shift_row + 2, shift_col + 8, "Fehlschuss", PATTERN_MARK2, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
     set_cell(ws, shift_row + 2, shift_col + 9, b_left=True, b_right=True, b_top=True, b_bottom=True) # just border
     ws.merge_cells(start_row=shift_row + 2, start_column=shift_col + 8, end_row=shift_row + 2, end_column=shift_col + 9)
 
@@ -372,11 +372,11 @@ def draw_wireframe(ws, shot_data: list[list[Shot]], mode: int, start_cell: tuple
         raise ValueError("shift_col must be less than 26, otherwise the column names will not fit in Excel")
 
     # table head, top left
-    set_cell(ws, shift_row + 2, shift_col + 2, "Schuss", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True)
+    set_cell(ws, shift_row + 2, shift_col + 2, "Schuss", PATTERN_HEADER, b_left=True, b_right=True, b_top=True, b_bottom=True)
 
     for i in range(len(shot_data)):
         # table head, left
-        set_cell(ws, shift_row + 3 + i, shift_col + 2, "Ringwert", pattern_header, b_left=True, b_right=True)
+        set_cell(ws, shift_row + 3 + i, shift_col + 2, "Ringwert", PATTERN_HEADER, b_left=True, b_right=True)
 
         # result column, right
         shot_range = f"{chr(ord('C') + shift_col)}{shift_row + 3 + i}:{chr(ord('C') + shift_col + SHOTS_PER_SERIES - 1)}{shift_row + 3 + i}" # one series
@@ -392,7 +392,7 @@ def draw_wireframe(ws, shot_data: list[list[Shot]], mode: int, start_cell: tuple
 
     for i in range(SHOTS_PER_SERIES):
         # table head, top
-        set_cell(ws, shift_row + 2, shift_col + 3 + i, i + 1, pattern_header, b_top=True, b_bottom=True, center_h=True)
+        set_cell(ws, shift_row + 2, shift_col + 3 + i, i + 1, PATTERN_HEADER, b_top=True, b_bottom=True, center_h=True)
 
         # extra border, bottom
         set_cell(ws, shift_row + 3 + len(shot_data), shift_col + 3 + i, b_top=True) # just border
@@ -401,7 +401,7 @@ def draw_wireframe(ws, shot_data: list[list[Shot]], mode: int, start_cell: tuple
     set_cell(ws, shift_row + 3 + len(shot_data), shift_col + 2, b_top=True) # just border
 
     # table head, top right
-    set_cell(ws, shift_row + 2, shift_col + 3 + SHOTS_PER_SERIES, "Gesamt", pattern_header, b_left=True, b_right=True, b_top=True, b_bottom=True)
+    set_cell(ws, shift_row + 2, shift_col + 3 + SHOTS_PER_SERIES, "Gesamt", PATTERN_HEADER, b_left=True, b_right=True, b_top=True, b_bottom=True)
 
     return (shift_row + 3 + len(shot_data), shift_col + 3 + SHOTS_PER_SERIES + 1)
 
@@ -425,9 +425,9 @@ def fill_wireframe(ws, name_: str, shot_data: list[list[Shot]], mode: int, start
         for col, shot in enumerate(series):
             value = trunc(shot.ring) if mode == 2 else shot.ring
             if shot.ring > 0 and shot.div is None: # manually corrected
-                fill = pattern_mark1
+                fill = PATTERN_MARK1
             elif shot.ring == 0 and shot.div is None: # missed shot
-                fill = pattern_mark2
+                fill = PATTERN_MARK2
             else: # normal shot
                 fill = None
             set_cell(ws, shift_row + 3 + row, shift_col + 3 + col, value, fill, center_h=True)
