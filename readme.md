@@ -22,7 +22,7 @@ Hauptgegenstand ist die Datei [SAM_Auswertung.py](https://github.com/Logogistiks
     1. Scheiben nacheinander in Maschine einlegen
     1. (`n` für neuen Schützen drücken)
 1. Wenn fertig, `esc` für Speichern & Beenden drücken
-1. Die Excel-Datei öffnet sich automatisch.
+1. Die Excel-Datei öffnet sich automatisch:
 
 ![Output: Excel-Datei](https://github.com/Logogistiks/sam4k/blob/main/output_example.png)
 
