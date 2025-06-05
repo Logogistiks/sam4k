@@ -4,11 +4,11 @@ This section is intended for developers setting up / maintaining the project, an
 
 ## 📋Table of contents
 
-- #### [ℹ️Overview](#overview)
+- #### [ℹ️Overview](#ℹ%EF%B8%8Foverview-1)
 - #### [📦Installation & Setup](#installation--setup)
 - #### [📫Communication with SAM4000](#communication-with-sam4000-1)
-- #### [🛑Exit codes](#exit-codes)
-- #### [📚Documentation](#documentation)
+- #### [🛑Exit codes](#exit-codes-1)
+- #### [📚Documentation](#documentation-1)
 
 ## ℹ️Overview
 
