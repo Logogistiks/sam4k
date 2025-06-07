@@ -1,6 +1,7 @@
 # SAM4K Developer Info
 
-This section is intended for developers setting up / maintaining the project, and is therefore written in english like the code itself.
+This section is intended for developers setting up / maintaining the project, and is therefore written in english like the code itself, \
+to also allow non german speakers to understand this project.
 
 ## 📋Table of contents
 
@@ -24,7 +25,7 @@ There is a long-term memory for every entered person.
 
 ### Saving:
 On quitting, each persons data is saved in its own section in the same output `.xlsx` file. \
-The filenames contains the current date and time. \
+The filenames contain the current date and time. \
 They are located in the main directory, sorted in folders by **year** and **month**. \
 The file is opened automatically on quitting.
 
@@ -38,7 +39,7 @@ The file is opened automatically on quitting.
     ```
     pip install -r requirements.txt
     ```
-1. Project is ready. Run `SAM_Auswertung.py` to get started.
+1. Project is ready. Plug in the SAM device and run `SAM_Auswertung.py` to get started.
 
 ## 📫Communication with SAM4000
 
@@ -46,17 +47,18 @@ The communication with the device is based on the RS 232 protocol, as written in
 
 ### Communication codes used:
 
-| code    | hex  | sender   | meaning
-| ------- | ---- | -------- | -------
-| STX     | 0x02 | SAM      | result is ready!
-| ENQ     | 0x05 | PC       | is result ready?
-| ACK     | 0x06 | PC       | data received correctly
-| CR      | 0x0D | SAM      | separator in data block
-| NAK     | 0x15 | SAM / PC | result not ready / data not received correctly
-| ETB     | 0x17 | SAM      | separates data and checksum
-| _EXIT_  | 0xB0 | PC       | log out, SAM goes inactive
-| _BAR_   | 0xB1 | PC       | sign in, barcode is used
-| _NOBAR_ | 0xB2 | PC       | sign in, barcode is ignored
+| code    | hex  | sent by | meaning
+| ------- | ---- | ------- | -------
+| STX     | 0x02 | SAM     | result is ready!
+| ENQ     | 0x05 | PC      | is result ready?
+| ACK     | 0x06 | PC      | data received correctly
+| CR      | 0x0D | SAM     | separator in data block
+| NAK     | 0x15 | SAM     | result not ready
+|         |      | PC      | data not received correctly
+| ETB     | 0x17 | SAM     | separates data and checksum
+| _EXIT_  | 0xB0 | PC      | log out, SAM goes inactive
+| _BAR_   | 0xB1 | PC      | sign in, barcode is used
+| _NOBAR_ | 0xB2 | PC      | sign in, barcode is ignored
 
 ### Communication process:
 
@@ -104,7 +106,7 @@ Divisor, X- and Y-distance are in 1/100 mm from target center.
 
 ## 🛑Exit codes
 
-All occuring errors should be catched and printed to console.  \
+All occuring errors should be caught and printed to console, allowing for the serial connection to be closed properly.  \
 If that happens, the program terminates gracefully with a specific exit code:
 
 | code | cause | fix
@@ -118,7 +120,8 @@ If that happens, the program terminates gracefully with a specific exit code:
 
 ## 📚Documentation
 
-List of selected objects and what they do.
+List of selected objects and what they do. \
+For further info, consult docstrings and type hints.
 
 ### Constants
 
