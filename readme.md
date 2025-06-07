@@ -15,7 +15,7 @@ Hauptgegenstand ist die Datei [SAM_Auswertung.py](https://github.com/Logogistiks
 
 1. (Maschine per Seriellanschluss mit dem PC verbinden)
 1. Programm `SAM_Auswertung.py` starten
-1. **Schussanzahl** pro Streifen auswählen
+1. **Schussanzahl pro Streifen** auswählen
 1. **Berechnungsmodus** auswählen
 1. Wiederholen bis alle Schützen eingegeben:
     1. **Name** des Schützen eingeben
