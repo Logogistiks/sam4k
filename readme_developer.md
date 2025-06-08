@@ -181,7 +181,7 @@ For further info, consult docstrings and type hints.
 
         Staticmethod that returns a transmission object with data parsed from bytes.
 
-    * `.receive()`
+    * `.from_serial()`
 
         Staticmethod that returns a transmission object with data read from a serial object.
 

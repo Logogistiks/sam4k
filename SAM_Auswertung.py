@@ -196,7 +196,7 @@ class Transmission:
         return trans
 
     @staticmethod
-    def receive(ser: Serial, retry_infinite: bool=False) -> Transmission | None:
+    def from_serial(ser: Serial, retry_infinite: bool=False) -> Transmission | None:
         """Receives bytes from the given serial port and returns it as a Transmission object. \\
         If checksum is wrong and max retries is reached, sends CODE_ACK and returns None."""
         retries = 0
@@ -544,11 +544,11 @@ def main() -> None:
 
             # STX => new data being transmitted, start receiving
             if response == CODE_STX: # transmission start
-                trans = Transmission.receive(ser)
+                trans = Transmission.from_serial(ser)
                 if trans is None:
                     print("Fehler: Übertragung fehlerhaft, bitte Kabel auf Wackelkontakt o.ä. prüfen. Dann bestätigen und letzte Scheibe neu erfassen")
                     input("Drücke Enter zum Bestätigen...")
-                    continue # ACK is already sent by Transmission.receive()
+                    continue # ACK is already sent by Transmission.from_serial()
                 mem.update_memory(trans)
                 ser.write(CODE_ACK) # com cycle finished
 
