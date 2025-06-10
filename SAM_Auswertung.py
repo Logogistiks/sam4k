@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import openpyxl.worksheet
+import openpyxl.worksheet.page
+
 __all__ = ["SHOTS_PER_SERIES", "COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "MemoryHandler", "checksum_xor", "open_file", "save_data", "main"]
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
 
 #built in modules
@@ -18,6 +21,7 @@ try:
     import openpyxl
     import openpyxl.cell
     import openpyxl.styles
+    from openpyxl.worksheet.worksheet import Worksheet
     from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, Serial
     from serial.tools import list_ports
     import beaupy
@@ -47,6 +51,13 @@ LOG_TRANSMISSIONS = False
 
 CHSUM_RETRY = 3
 """How many times to retry fetching the transmission data from the device"""
+
+MODES = [
+    "1) mit Teiler",
+    "2) ohne Teiler",
+    "3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren"
+]
+"""How to save the data in the excel"""
 
 #################### Begin Program Logic #####################
 
@@ -340,7 +351,7 @@ def set_cell(ws, row: int, col: int, value=None, fill=None, b_left: bool=False, 
     if any((center_h, center_v)):
         cell.alignment = openpyxl.styles.Alignment(horizontal="center" if center_h else None, vertical="center" if center_v else None)
 
-def draw_header(ws, start_cell: tuple[int]=(1, 1)) -> tuple[int]:
+def draw_header(ws, mode: int, start_cell: tuple[int]=(1, 1)) -> tuple[int]:
     """Draws the header on the excel worksheet. Returns the bottom right cell of the header. \\
     `start_cell` [row, col] is the top left cell of this header, Excel cells are 1-indexed."""
 
@@ -360,6 +371,12 @@ def draw_header(ws, start_cell: tuple[int]=(1, 1)) -> tuple[int]:
     set_cell(ws, shift_row + 2, shift_col + 8, "Fehlschuss", PATTERN_MARK2, b_left=True, b_right=True, b_top=True, b_bottom=True, center_h=True)
     set_cell(ws, shift_row + 2, shift_col + 9, b_left=True, b_right=True, b_top=True, b_bottom=True) # just border
     ws.merge_cells(start_row=shift_row + 2, start_column=shift_col + 8, end_row=shift_row + 2, end_column=shift_col + 9)
+
+    # mode indicator
+    set_cell(ws, shift_row + 2, shift_col + 11, "Modus:", PATTERN_HEADER, b_left=True, b_top=True, b_bottom=True)
+    set_cell(ws, shift_row + 2, shift_col + 12, MODES[mode - 1], PATTERN_HEADER, b_top=True, b_bottom=True)
+    set_cell(ws, shift_row + 2, shift_col + 13, None, PATTERN_HEADER, b_right=True, b_top=True, b_bottom=True)
+    ws.merge_cells(start_row=shift_row + 2, start_column=shift_col + 12, end_row=shift_row + 2, end_column=shift_col + 13)
 
     return (shift_row + 3, shift_col + 10)
 
@@ -436,8 +453,9 @@ def save_data(memory: MemoryHandler, mode: int, start_cell: tuple[int]=(1, 1)) -
     """Saves the data to an Excel file and returns the filepath"""
     wb = openpyxl.Workbook()
     ws = wb.active
+    openpyxl.worksheet.worksheet.Worksheet.set_printer_settings(ws, paper_size=Worksheet.PAPERSIZE_A4, orientation='landscape')
 
-    end_cell_current_block = draw_header(ws, start_cell)
+    end_cell_current_block = draw_header(ws, mode, start_cell)
 
     # draw wireframe for each person
     for name, shot_data in memory.MEM_long.items():
@@ -484,14 +502,9 @@ def main() -> None:
     print(f"> {Fore.LIGHTCYAN_EX}{SHOTS_PER_STRIP}{Style.RESET_ALL}\n")
 
     # get processing mode
-    modes = [
-    "1) mit Teiler",
-    "2) ohne Teiler",
-    "3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren"
-    ]
     print("Speicher-Modus mit Pfeiltasten auswählen und mit Enter bestätigen:")
-    mode = int(beaupy.select(modes , cursor=">", cursor_style="bright_yellow", return_index=True)) + 1
-    print(f"> {Fore.LIGHTCYAN_EX}{modes[mode-1]}{Style.RESET_ALL}\n")
+    mode = int(beaupy.select(MODES , cursor=">", cursor_style="bright_yellow", return_index=True)) + 1
+    print(f"> {Fore.LIGHTCYAN_EX}{MODES[mode-1]}{Style.RESET_ALL}\n")
 
     # setup serial connection and memory handler
     ser = Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False)
