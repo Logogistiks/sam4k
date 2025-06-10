@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import openpyxl.worksheet
-import openpyxl.worksheet.page
-
 __all__ = ["SHOTS_PER_SERIES", "COM_CODES", "CODE_STX", "CODE_ENQ", "CODE_ACK", "CODE_CR", "CODE_NAK", "CODE_ETB", "CODE_EXIT", "CODE_BAR", "CODE_NOBAR", "Shot", "Transmission", "MemoryHandler", "checksum_xor", "open_file", "save_data", "main"]
 __version__ = "2.0.3"
 __author__ = "Jan Seifert <sam4k@logogistiks.de>"
@@ -57,7 +54,7 @@ MODES = [
     "2) ohne Teiler",
     "3) Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren"
 ]
-"""How to save the data in the excel"""
+"""The modes of the program, which determine how the data is processed and displayed in the Excel file"""
 
 #################### Begin Program Logic #####################
 
