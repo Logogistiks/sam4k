@@ -73,8 +73,8 @@ The communication with the device is based on the RS 232 protocol, as written in
         * SAM sends `ETB`
         * SAM sends checksum
         * SAM sends end-byte "$"
-        * If data correct: PC sends `ACK`
-        * If data not correct: PC sends `NAK`, SAM repeats **from data til "$"**
+        * If checksum correct: PC sends `ACK`
+        * If checksum not correct: PC sends `NAK`, SAM repeats **from data til "$"**
 
 ### Structure of data block:
 
