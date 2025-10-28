@@ -2,7 +2,7 @@
 ~$*
 
 *.xlsx
-test.py
+test*.py
 *tmp.txt
 
 __*

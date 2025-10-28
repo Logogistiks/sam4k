@@ -10,8 +10,10 @@ import re
 from copy import deepcopy
 from datetime import datetime
 from math import trunc
-from time import sleep
+from time import sleep, time
 from dataclasses import dataclass
+if os.name != "nt": # libraries only needed for keypress capture on Linux
+    import sys, termios, tty, select
 
 #external modules
 try:
@@ -23,7 +25,8 @@ try:
     from serial.tools import list_ports
     import beaupy
     from colorama import init, Fore, Back, Style
-    from pynput import keyboard
+    if os.name == "nt":
+        from pynput import keyboard
 except ImportError as e:
     print(f"Fehler beim importieren: {e}.\n Bitte die erforderlichen Module mit 'pip install -r requirements.txt' installieren.")
     input("Drücke Enter zum Beenden...")
@@ -311,14 +314,50 @@ def checksum_xor(byt: bytes) -> int:
         chsum ^= b
     return chsum
 
-def record_keypresses(t: float=1) -> list[keyboard.Key | keyboard.KeyCode]:
+def record_keypresses_windows(t: float=1) -> list[keyboard.Key | keyboard.KeyCode]: # type: ignore
     """Records all keyboard activity in the next `t` seconds synchronously, blocking the program flow."""
     pressed = []
-    listener = keyboard.Listener(on_press=None, on_release=pressed.append, suppress=True) # looks a bit cursed
+    listener = keyboard.Listener(on_press=None, on_release=pressed.append, suppress=True) # looks a bit cursed # type: ignore
     listener.start()
     sleep(t)
     listener.stop()
     return pressed
+
+def record_keypresses_linux(t: float=1) -> list[str]:
+    """Records all keyboard activity in the next `t` seconds synchronously, blocking the program flow.
+    
+    Ugly ChatGPT code"""
+    # type ignore is to supress linter because libraries are only available on Linux
+    fd = sys.stdin.fileno() # type: ignore
+    old = termios.tcgetattr(fd) # type: ignore
+    keys = []
+
+    try:
+        tty.setcbreak(fd) # type: ignore
+        new = termios.tcgetattr(fd) # type: ignore
+        new[3] &= ~termios.ECHO # disable echo # type: ignore
+        termios.tcsetattr(fd, termios.TCSANOW, new) # type: ignore
+
+        end = time() + t
+        while time() < end:
+            r, _, _ = select.select([sys.stdin], [], [], 0.05) # type: ignore
+            if r:
+                ch = sys.stdin.read(1) # type: ignore
+                keys.append(ch)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old) # type: ignore
+    return keys
+
+def check_ESC_N(t: float=1) -> tuple[bool, bool]:
+    """Listen to keypresses for `t` seconds and check if ESC and N/n were pressed.
+    
+    Returns a bool tuple (`ESC_pressed`, `N_pressed`)"""
+    if os.name == "nt":
+        keys = record_keypresses_windows(t)
+        return (keyboard.Key.esc in keys, keyboard.KeyCode.from_char("n") in keys or keyboard.KeyCode.from_char("N") in keys) # type: ignore
+    else:
+        keys = record_keypresses_linux(t)
+        return ("\x1b" in keys, "n" in keys or "N" in keys)
 
 def open_file(fname: str) -> None:
     """Opens the file with the default program"""
@@ -478,6 +517,9 @@ def main() -> None:
     """Main function to run the program"""
     global ser
 
+    # set working directory to that of this file
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
     # sanity check
     if SHOTS_PER_SERIES not in (1, 2, 5, 10) and SHOTS_PER_SERIES % 10 != 0:
         print("Konfigurationsfehler: Schussanzahl pro Serie (SHOTS_PER_SERIES) muss 1, 2, 5, oder ein Vielfaches von 10 sein")
@@ -485,7 +527,7 @@ def main() -> None:
         raise SystemExit(10)
 
     # check if the configured serial port exists
-    ports_available = [port.name for port in list_ports.comports()]
+    ports_available = [port.device for port in list_ports.comports()]
     if not PORT in ports_available:
         print(f"Fehler: Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
         for port in sorted(ports_available):
@@ -506,9 +548,6 @@ def main() -> None:
     # setup serial connection and memory handler
     ser = Serial(port=PORT, baudrate=9600, timeout=1, parity=PARITY_NONE, stopbits=STOPBITS_ONE, bytesize=EIGHTBITS, xonxoff=False, rtscts=False)
     mem = MemoryHandler(SHOTS_PER_STRIP)
-
-    key_n = keyboard.KeyCode.from_char("n")
-    key_N = keyboard.KeyCode.from_char("N")
 
     ser.write(CODE_NOBAR)
     print("Gerät gefunden -> start")
@@ -539,13 +578,13 @@ def main() -> None:
 
             # NAK => no new data, check keypresses for exit or next person
             if response == CODE_NAK:
-                keys_pressed = record_keypresses(0.5) # detect exit-keypress during 0.5s delay between ENQs, as recommended by manual p. 31
-                if keyboard.Key.esc in keys_pressed and (key_n in keys_pressed or key_N in keys_pressed): # ignore when both pressed
+                ESC_pressed, N_pressed = check_ESC_N(0.5) # detect exit-keypress during 0.5s delay between ENQs, as recommended by manual p. 31
+                if ESC_pressed and N_pressed: # ignore when both pressed
                     continue
-                elif key_n in keys_pressed or key_N in keys_pressed: # enter => new person
+                elif N_pressed: # n => new person
                     FLAG_next_user = True # jump out of inner while loop
                     continue
-                elif keyboard.Key.esc in keys_pressed: # save data and exit
+                elif ESC_pressed: # save data and exit
                     FLAG_next_user = True # jump out of inner while loop
                     FLAG_save_exit = True # jump out of outer while loop
                     continue
