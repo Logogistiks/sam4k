@@ -13,9 +13,6 @@ to also allow non german speakers to understand this project.
 
 ## ℹ️Overview
 
-This project is made with focus on Windows. \
-Theoretically, everything is coded cross-platform, but its not tested outside of windows.
-
 ### Basic functionality:
 1. transmitted bytedata is parsed as a [Transmission](#transmission) object
 1. shot data of transmission is collected in short-term [Memory](#memoryhandler)
@@ -101,6 +98,7 @@ The communication with the device is based on the RS 232 protocol, as written in
     * 1 byte: `CR`
 
 Missing values are transmitted as "?" (number of figures is preserved). \
+X- and Y-distance always start with either a `+` or `-` character. \
 All number values are padded with leading zeroes. \
 Divisor, X- and Y-distance are in 1/100 mm from target center.
 
@@ -114,13 +112,13 @@ If that happens, the program terminates gracefully with a specific exit code:
 | 0    | no data to save on quitting | ---
 | 2    | cant import external library | `pip install -r requirements.txt`
 | 10   | configuration error with `SHOTS_PER_SERIES` | edit `SHOTS_PER_SERIES` at top of file
-| 20   | configured serial port not found | check serial ports, set another
-| 30   | received empty response from serial | check that device is on, check cable connection
+| 20   | configured serial port not found | check serial ports, check drivers, use another one
+| 30   | received empty response from serial | check that device is powered on, check cable connection
 | 99   | non accounted error occured | ...
 
 ## 📚Documentation
 
-List of selected objects and what they do. \
+List of selected objects and methods and what they do. \
 For further info, consult docstrings and type hints.
 
 ### Constants
@@ -221,9 +219,17 @@ For further info, consult docstrings and type hints.
 
     Calculates the xor checksum for given bytes, as done by the SAM device.
 
-* `record_keypresses()`
+* `record_keypresses_windows()`
 
     Listens for keypresses in given timeframe and returns them as list.
+
+* `record_keypresses_linux()`
+
+    Listens for keypresses in given timeframe and returns them as list.
+
+* `check_ESC_N()`
+
+    Listens for keypresses in given timeframe and return whether ESC and/or N was pressed.
 
 * `open_file()`
 
