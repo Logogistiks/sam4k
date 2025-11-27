@@ -32,7 +32,7 @@ except ImportError as e:
     input("Drücke Enter zum Beenden...")
     raise SystemExit(2)
 
-if os.name == "nt": # when called on linux it wrecks the terminal state, apparently not resettable by anything, resulting in internal error in the beaupy function calls
+if os.name == "nt":
     init(convert=True) # colorama init for Windows compatibility
 
 #################### Begin User Settings ####################
@@ -325,7 +325,8 @@ def record_keypresses_windows(t: float=1) -> list[keyboard.Key | keyboard.KeyCod
     return pressed
 
 def record_keypresses_linux(t: float=1) -> list[str]:
-    """Records all keyboard activity in the next `t` seconds synchronously, blocking the program flow."""
+    """Records all keyboard activity in the next `t` seconds synchronously, blocking the program flow.
+    Uses minimal termios/select logic to avoid any screen blanking or echo issues."""
     fd = sys.stdin.fileno()  # type: ignore
     old_settings = termios.tcgetattr(fd)  # type: ignore
     keys = []
@@ -510,6 +511,8 @@ def main() -> None:
     """Main function to run the program"""
     global ser
 
+    print(sys.stdin.isatty(), sys.stdout.isatty())
+
     # set working directory to that of this file
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -521,7 +524,7 @@ def main() -> None:
 
     # check if the configured serial port exists
     ports_available = [port.device for port in list_ports.comports()]
-    if not PORT in ports_available:
+    if not PORT in ports_available and False: #todo remove
         print(f"Fehler: Konfiguriert ist Anschluss {PORT}, wurde nicht gefunden.\n  - bitte Kabelverbindung prüfen\n  - Gerätemanager checken\n  - IT rufen\n\nIm Moment verfügbare Seriellanschlüsse sind:")
         for port in sorted(ports_available):
             print(f"  - {port}")
@@ -530,6 +533,11 @@ def main() -> None:
 
     # get expected number of shots per strip
     print("Schussanzahl pro Streifen mit Pfeiltasten auswählen und mit Enter bestätigen:")
+
+    print("TERM:", os.environ.get("TERM"))
+    print("stdin isatty:", sys.stdin.isatty())
+    print("stdout isatty:", sys.stdout.isatty())
+
     SHOTS_PER_STRIP: int = beaupy.select([1, 2, 5, 10], cursor=">", cursor_style="bright_yellow", cursor_index=3)
     print(f"> {Fore.LIGHTCYAN_EX}{SHOTS_PER_STRIP}{Style.RESET_ALL}\n")
 
