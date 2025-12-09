@@ -12,6 +12,7 @@ from datetime import datetime
 from math import trunc
 from time import sleep, time
 from dataclasses import dataclass
+from subprocess import Popen
 if os.name != "nt": # libraries only needed for keypress capture on Linux
     import sys, termios, tty, select
 
@@ -358,7 +359,7 @@ def open_file(fname: str) -> None:
         os.startfile(fname, "open")
     elif os.name == "posix":
         try:
-            os.system(f"xdg-open {fname}")
+            Popen(["xdg-open", fname], start_new_session=True)
         except:
             print("Could not open the file")
     else:
