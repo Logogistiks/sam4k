@@ -603,7 +603,10 @@ def main() -> None:
 
     mem.finalize()
     if not mem.MEM_long:
-        print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+        if mem.MEM_short:
+            print(f"Kein vollständiger Datensatz ({len(mem.MEM_short)} / {SHOTS_PER_SERIES}) zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+        else:
+            print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
         input("Drücke Enter zum Beenden...")
         raise SystemExit(0)
 
