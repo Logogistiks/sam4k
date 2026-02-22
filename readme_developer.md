@@ -36,6 +36,7 @@ The file is opened automatically on quitting.
     ```
     pip install -r requirements.txt
     ```
+1. Rename config file to `config.conf`
 1. Project is ready. Plug in the SAM device and run `SAM_Auswertung.py` to get started.
 
 ## 📫Communication with SAM4000
