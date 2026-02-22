@@ -611,19 +611,7 @@ def main() -> None:
             print(f"    - Drücke {Back.WHITE + Fore.BLACK}<Esc>{Style.RESET_ALL}, um die Ergebnisse zu speichern und das Programm zu beenden\n")
 
     ser.write(CODE_EXIT) # set device inactive
-    ser.close()
-
-    mem.finalize()
-    if not mem.MEM_long:
-        if mem.MEM_short:
-            print(f"Kein vollständiger Datensatz ({len(mem.MEM_short)} / {SHOTS_PER_SERIES}) zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
-        else:
-            print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
-        input("Drücke Enter zum Beenden...")
-        raise SystemExit(0)
-
-    fname = save_data(mem, mode)
-    open_file(fname)
+    ser.close()        
 
 if __name__ == "__main__":
     ser: Serial = None
@@ -639,6 +627,9 @@ if __name__ == "__main__":
             log(e, fname_prefix="", fname_suffix="error")
         print(f"nicht abgefangener Fehler aufgetreten: {e}")
 
+        input("Drücke Enter zum Beenden...")
+        raise SystemExit(99)
+    finally:
         try:
             mem.finalize()
             if not mem.MEM_long:
@@ -652,9 +643,7 @@ if __name__ == "__main__":
                 open_file(fname)
         except:
             print("Fehler beim speichern")
-
         input("Drücke Enter zum Beenden...")
-        raise SystemExit(99)
 
 ### Terminology in this project ###
 # Target : @
