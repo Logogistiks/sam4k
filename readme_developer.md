@@ -108,7 +108,7 @@ All occuring errors should be caught and printed to console, allowing for the se
 If that happens, the program terminates gracefully with a specific exit code:
 
 | code | cause | fix
-| ---- | ----- | --config-
+| ---- | ----- | ---
 | 0    | no data to save on quitting | ---
 | 2    | cant import external library | `pip install -r requirements.txt`
 | 10   | configuration error | edit config file
