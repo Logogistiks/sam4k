@@ -41,7 +41,7 @@ if os.name == "nt": # when called on linux it wrecks the terminal state, apparen
 
 try:
     config = configparser.ConfigParser()
-    config.read("config.conf")
+    config.read(os.join(os.path.realpath(os.path.dirname(__file__)), "config.conf"))
 
     PORT = config["MAIN"]["PORT"]
     if PORT.lower() == "default":
