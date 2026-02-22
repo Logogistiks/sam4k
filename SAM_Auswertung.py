@@ -514,7 +514,7 @@ def save_data(memory: MemoryHandler, mode: int, start_cell: tuple[int]=(1, 1)) -
 
 def main() -> None:
     """Main function to run the program"""
-    global ser
+    global ser, mem, mode
 
     # set working directory to that of this file
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -621,6 +621,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     ser: Serial = None
+    mem: MemoryHandler = None
+    mode: int = None
     try:
         main()
     except Exception as e:
@@ -630,6 +632,21 @@ if __name__ == "__main__":
         if LOG_ERRORS:
             log(e, fname_prefix="", fname_suffix="error")
         print(f"nicht abgefangener Fehler aufgetreten: {e}")
+
+        try:
+            mem.finalize()
+            if not mem.MEM_long:
+                if mem.MEM_short:
+                    print(f"Kein vollständiger Datensatz ({len(mem.MEM_short)} / {SHOTS_PER_SERIES}) zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+                else:
+                    print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+            else:
+                print("Speichere vorhandene Daten")
+                fname = save_data(mem, mode)
+                open_file(fname)
+        except:
+            print("Fehler beim speichern")
+
         input("Drücke Enter zum Beenden...")
         raise SystemExit(99)
 
