@@ -48,8 +48,10 @@ PATTERN_HEADER = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="AD
 PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
 PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
 
-LOG_TRANSMISSIONS = False
+LOG_TRANSMISSIONS = True
 """Whether to log the raw bytes received from the SAM4000 device to a file"""
+LOG_ERRORS = True
+"""Whether to log uncaught errors to a file"""
 
 CHSUM_RETRY = 3
 """How many times to retry fetching the transmission data from the device"""
@@ -216,7 +218,7 @@ class Transmission:
         while True:
             response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
             if LOG_TRANSMISSIONS:
-                log(response)
+                log(response, fname_prefix="", fname_suffix="transmission")
             data, checksum = response.split(CODE_ETB)
             calc_checksum = checksum_xor(CODE_STX + data + CODE_ETB)
             if calc_checksum != ord(checksum):
@@ -290,11 +292,14 @@ class MemoryHandler:
         # remove empty people, can happen if pressed `n` immediately after entering a name
         self.MEM_long = {k: v for k, v in self.MEM_long.items() if v}
 
-def log(content: str | bytes) -> None:
+def log(content: str | bytes, fname_prefix: str="log", fname_suffix: str="") -> None:
     """Logs the given content (readableBuffer) to a file in the log directory, filename is current time"""
     if not os.path.exists("log"):
         os.mkdir("log")
-    with open(os.path.join("log", f"log-{nowtime()}.bin"), "wb" if isinstance(content, bytes) else "w") as f:
+    with open(os.path.join("log",
+        f"{fname_prefix}{'_' if fname_prefix else ''}{nowtime()}{'_' if fname_suffix else ''}{fname_suffix}.bin"),
+        "wb" if isinstance(content, bytes) else "w"
+    ) as f:
         f.write(content)
 
 def clear() -> None:
@@ -622,6 +627,8 @@ if __name__ == "__main__":
         if ser is not None and ser.is_open: # fallback to close serial port gracefully on uncaught error
             ser.write(CODE_EXIT) # set device inactive
             ser.close()
+        if LOG_ERRORS:
+            log(e, fname_prefix="", fname_suffix="error")
         print(f"nicht abgefangener Fehler aufgetreten: {e}")
         input("Drücke Enter zum Beenden...")
         raise SystemExit(99)
