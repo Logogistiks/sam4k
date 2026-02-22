@@ -13,6 +13,7 @@ from math import trunc
 from time import sleep, time
 from dataclasses import dataclass
 from subprocess import Popen
+import configparser
 if os.name != "nt": # libraries only needed for keypress capture on Linux
     import sys, termios, tty, select
 
@@ -36,25 +37,30 @@ except ImportError as e:
 if os.name == "nt": # when called on linux it wrecks the terminal state, apparently not resettable by anything, resulting in internal error in the beaupy function calls
     init(convert=True) # colorama init for Windows compatibility
 
-#################### Begin User Settings ####################
+#################### Load config ####################
 
-PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
-"""The serial port of the SAM4000 device"""
+try:
+    config = configparser.ConfigParser()
+    config.read("config.conf")
 
-SHOTS_PER_SERIES = 10 # should be 1, 2, 5, or a multiple of 10
-"""How many shots should be saved in a series (one row in the excel file)"""
+    PORT = config["MAIN"]["PORT"]
+    if PORT.lower() == "default":
+        PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
 
-PATTERN_HEADER = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
-PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
-PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
+    SHOTS_PER_SERIES = int(config["MAIN"]["SHOTS_PER_SERIES"])
 
-LOG_TRANSMISSIONS = True
-"""Whether to log the raw bytes received from the SAM4000 device to a file"""
-LOG_ERRORS = True
-"""Whether to log uncaught errors to a file"""
+    PATTERN_HEADER = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_HEADER"], end_color=config["MAIN"]["COLORHEX_HEADER"], fill_type="solid") # light blue
+    PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_MANUAL"], end_color=config["MAIN"]["COLORHEX_MANUAL"], fill_type="solid") # light yellow
+    PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_MISSING"], end_color=config["MAIN"]["COLORHEX_MISSING"], fill_type="solid") # light coral
 
-CHSUM_RETRY = 3
-"""How many times to retry fetching the transmission data from the device"""
+    LOG_TRANSMISSIONS = config["MAIN"].getboolean("LOG_TRANSMISSIONS")
+    LOG_ERRORS = config["MAIN"].getboolean("LOG_ERRORS")
+
+    CHSUM_RETRY = int(config["MAIN"]["CHSUM_RETRY"])
+except Exception as e:
+    print(f"Fehler beim Laden der Konfiguration: {e}\n Stelle sicher, dass die config.conf Datei existiert und lesbar ist.")
+    input("Drücke Enter zum Beenden...")
+    raise SystemExit(10)
 
 MODES = [
     "1) mit Teiler",
