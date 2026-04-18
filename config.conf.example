@@ -1,0 +1,19 @@
+[MAIN]
+# use value default for OS default; COM3 or ttyUSB0
+PORT = default
+
+# should be 1, 2, 5, or a multiple of 10
+SHOTS_PER_SERIES = 10
+
+# light blue
+COLORHEX_HEADER = ADD8E6
+# light yellow
+COLORHEX_MANUAL = FFF176
+# light coral
+COLORHEX_MISSING = F08080
+
+LOG_TRANSMISSIONS = true
+LOG_ERRORS = true
+
+# How many times to retry fetching the transmission data from the device
+CHSUM_RETRY = 3

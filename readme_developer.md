@@ -36,6 +36,7 @@ The file is opened automatically on quitting.
     ```
     pip install -r requirements.txt
     ```
+1. Rename config file to `config.conf`
 1. Project is ready. Plug in the SAM device and run `SAM_Auswertung.py` to get started.
 
 ## 📫Communication with SAM4000
@@ -111,7 +112,7 @@ If that happens, the program terminates gracefully with a specific exit code:
 | ---- | ----- | ---
 | 0    | no data to save on quitting | ---
 | 2    | cant import external library | `pip install -r requirements.txt`
-| 10   | configuration error with `SHOTS_PER_SERIES` | edit `SHOTS_PER_SERIES` at top of file
+| 10   | configuration error | edit config file
 | 20   | configured serial port not found | check serial ports, check drivers, use another one
 | 30   | received empty response from serial | check that device is powered on, check cable connection
 | 99   | non accounted error occured | ...

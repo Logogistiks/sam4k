@@ -13,6 +13,7 @@ from math import trunc
 from time import sleep, time
 from dataclasses import dataclass
 from subprocess import Popen
+import configparser
 if os.name != "nt": # libraries only needed for keypress capture on Linux
     import sys, termios, tty, select
 
@@ -36,23 +37,30 @@ except ImportError as e:
 if os.name == "nt": # when called on linux it wrecks the terminal state, apparently not resettable by anything, resulting in internal error in the beaupy function calls
     init(convert=True) # colorama init for Windows compatibility
 
-#################### Begin User Settings ####################
+#################### Load config ####################
 
-PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
-"""The serial port of the SAM4000 device"""
+try:
+    config = configparser.ConfigParser()
+    config.read(os.path.join(os.path.realpath(os.path.dirname(__file__)), "config.conf"))
 
-SHOTS_PER_SERIES = 10 # should be 1, 2, 5, or a multiple of 10
-"""How many shots should be saved in a series (one row in the excel file)"""
+    PORT = config["MAIN"]["PORT"]
+    if PORT.lower() == "default":
+        PORT = {"nt": "COM3", "posix": "/dev/ttyUSB0"}[os.name]
 
-PATTERN_HEADER = openpyxl.styles.PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid") # light blue
-PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color="FFF176", end_color="FFF176", fill_type="solid") # light yellow
-PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color="F08080", end_color="F08080", fill_type="solid") # light coral
+    SHOTS_PER_SERIES = int(config["MAIN"]["SHOTS_PER_SERIES"])
 
-LOG_TRANSMISSIONS = False
-"""Whether to log the raw bytes received from the SAM4000 device to a file"""
+    PATTERN_HEADER = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_HEADER"], end_color=config["MAIN"]["COLORHEX_HEADER"], fill_type="solid") # light blue
+    PATTERN_MARK1 = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_MANUAL"], end_color=config["MAIN"]["COLORHEX_MANUAL"], fill_type="solid") # light yellow
+    PATTERN_MARK2 = openpyxl.styles.PatternFill(start_color=config["MAIN"]["COLORHEX_MISSING"], end_color=config["MAIN"]["COLORHEX_MISSING"], fill_type="solid") # light coral
 
-CHSUM_RETRY = 3
-"""How many times to retry fetching the transmission data from the device"""
+    LOG_TRANSMISSIONS = config["MAIN"].getboolean("LOG_TRANSMISSIONS")
+    LOG_ERRORS = config["MAIN"].getboolean("LOG_ERRORS")
+
+    CHSUM_RETRY = int(config["MAIN"]["CHSUM_RETRY"])
+except Exception as e:
+    print(f"Fehler beim Laden der Konfiguration: {e}\n Stelle sicher, dass die config.conf Datei existiert und lesbar ist.")
+    input("Drücke Enter zum Beenden...")
+    raise SystemExit(10)
 
 MODES = [
     "1) mit Teiler",
@@ -216,7 +224,7 @@ class Transmission:
         while True:
             response = ser.read_until(b"\x24")[:-1] # read until dollar sign exclusively
             if LOG_TRANSMISSIONS:
-                log(response)
+                log(response, fname_prefix="", fname_suffix="transmission")
             data, checksum = response.split(CODE_ETB)
             calc_checksum = checksum_xor(CODE_STX + data + CODE_ETB)
             if calc_checksum != ord(checksum):
@@ -290,11 +298,14 @@ class MemoryHandler:
         # remove empty people, can happen if pressed `n` immediately after entering a name
         self.MEM_long = {k: v for k, v in self.MEM_long.items() if v}
 
-def log(content: str | bytes) -> None:
+def log(content: str | bytes, fname_prefix: str="log", fname_suffix: str="") -> None:
     """Logs the given content (readableBuffer) to a file in the log directory, filename is current time"""
     if not os.path.exists("log"):
         os.mkdir("log")
-    with open(os.path.join("log", f"log-{nowtime()}.bin"), "wb" if isinstance(content, bytes) else "w") as f:
+    with open(os.path.join("log",
+        f"{fname_prefix}{'_' if fname_prefix else ''}{nowtime()}{'_' if fname_suffix else ''}{fname_suffix}.bin"),
+        "wb" if isinstance(content, bytes) else "w"
+    ) as f:
         f.write(content)
 
 def clear() -> None:
@@ -509,7 +520,7 @@ def save_data(memory: MemoryHandler, mode: int, start_cell: tuple[int]=(1, 1)) -
 
 def main() -> None:
     """Main function to run the program"""
-    global ser
+    global ser, mem, mode
 
     # set working directory to that of this file
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -600,31 +611,39 @@ def main() -> None:
             print(f"    - Drücke {Back.WHITE + Fore.BLACK}<Esc>{Style.RESET_ALL}, um die Ergebnisse zu speichern und das Programm zu beenden\n")
 
     ser.write(CODE_EXIT) # set device inactive
-    ser.close()
-
-    mem.finalize()
-    if not mem.MEM_long:
-        if mem.MEM_short:
-            print(f"Kein vollständiger Datensatz ({len(mem.MEM_short)} / {SHOTS_PER_SERIES}) zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
-        else:
-            print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
-        input("Drücke Enter zum Beenden...")
-        raise SystemExit(0)
-
-    fname = save_data(mem, mode)
-    open_file(fname)
+    ser.close()        
 
 if __name__ == "__main__":
     ser: Serial = None
+    mem: MemoryHandler = None
+    mode: int = None
     try:
         main()
     except Exception as e:
         if ser is not None and ser.is_open: # fallback to close serial port gracefully on uncaught error
             ser.write(CODE_EXIT) # set device inactive
             ser.close()
+        if LOG_ERRORS:
+            log(e, fname_prefix="", fname_suffix="error")
         print(f"nicht abgefangener Fehler aufgetreten: {e}")
+
         input("Drücke Enter zum Beenden...")
         raise SystemExit(99)
+    finally:
+        try:
+            mem.finalize()
+            if not mem.MEM_long:
+                if mem.MEM_short:
+                    print(f"Kein vollständiger Datensatz ({len(mem.MEM_short)} / {SHOTS_PER_SERIES}) zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+                else:
+                    print("Keine Daten zum Speichern vorhanden. (Aus Versehen Escape gedrückt?)")
+            else:
+                print("Speichere vorhandene Daten")
+                fname = save_data(mem, mode)
+                open_file(fname)
+        except:
+            print("Fehler beim speichern")
+        input("Drücke Enter zum Beenden...")
 
 ### Terminology in this project ###
 # Target : @
