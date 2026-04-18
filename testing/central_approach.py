@@ -7,7 +7,7 @@ import os
 os.chdir("testing")
 
 class AutoResizeLineEdit(QLineEdit):
-    def __init__(self, min_width=150, padding=10):
+    def __init__(self, min_width: int=150, padding: int=10):
         super().__init__()
         self._min_width = min_width
         self._padding = padding
@@ -22,7 +22,7 @@ class AutoResizeLineEdit(QLineEdit):
         self.setMinimumWidth(new_width)
 
 class LabelComboBox(QWidget):
-    def __init__(self, label_text, items, default_index=0, editable=False):
+    def __init__(self, label_text: str, items: list[str], default_index: int=0, editable: bool=False):
         super().__init__()
         self.LClayout = QVBoxLayout(self)
         self.LClayout.setAlignment(Qt.AlignTop)
@@ -37,7 +37,7 @@ class LabelComboBox(QWidget):
         self.LClayout.addWidget(self.LCcombo_box)
 
 class LabelRadioGroup(QWidget):
-    def __init__(self, label_text, options, default_index=0):
+    def __init__(self, label_text: str, options: list[tuple[str, str | None]], default_index: int=0):
         super().__init__()
         self.LRlayout = QVBoxLayout(self)
         self.LRlayout.setAlignment(Qt.AlignTop)
@@ -47,14 +47,15 @@ class LabelRadioGroup(QWidget):
 
         self.LRbutton_group = QButtonGroup(self)
         for i, option in enumerate(options):
-            radio_button = QRadioButton(option)
+            radio_button = QRadioButton(option[0])
+            radio_button.setToolTip(option[1])
             if i == default_index:
                 radio_button.setChecked(True)
             self.LRbutton_group.addButton(radio_button)
             self.LRlayout.addWidget(radio_button)
 
 class LabelLineEdit(QWidget):
-    def __init__(self, label_text, min_width=150, grow=False):
+    def __init__(self, label_text: str, min_width: int=150, grow: bool=False):
         super().__init__()
         self.LLlayout = QVBoxLayout(self)
         self.LLlayout.setAlignment(Qt.AlignTop)
@@ -80,35 +81,35 @@ class MainWindow(QMainWindow):
         # region: Toolbar
         # =========================
 
-        toolbar = QToolBar(self)
-        toolbar.setMovable(False)
-        toolbar.setFloatable(False)
-        toolbar.setContextMenuPolicy(Qt.PreventContextMenu)
-        self.addToolBar(toolbar)
+        self.toolbar = QToolBar(self)
+        self.toolbar.setMovable(False)
+        self.toolbar.setFloatable(False)
+        self.toolbar.setContextMenuPolicy(Qt.PreventContextMenu)
+        self.addToolBar(self.toolbar)
 
         action_run = QAction(QIcon("icons/run.svg"), "Run", self)
         action_run.setShortcut("Ctrl+R")
         action_run.triggered.connect(lambda: print("Run action triggered"))
-        toolbar.addAction(action_run)
+        self.toolbar.addAction(action_run)
 
         action_next = QAction(QIcon("icons/next.svg"), "Next", self)
         action_next.setShortcut("Ctrl+N")
         action_next.triggered.connect(lambda: print("Next action triggered"))
-        toolbar.addAction(action_next)
+        self.toolbar.addAction(action_next)
 
         action_save = QAction(QIcon("icons/save.svg"), "Save", self)
         action_save.setShortcut("Ctrl+S")
         action_save.triggered.connect(lambda: print("Save action triggered"))
-        toolbar.addAction(action_save)
+        self.toolbar.addAction(action_save)
 
         action_clear = QAction(QIcon("icons/clear.svg"), "Clear", self)
         action_clear.setShortcut("Ctrl+q")
         action_clear.triggered.connect(lambda: print("Clear action triggered"))
-        toolbar.addAction(action_clear)
+        self.toolbar.addAction(action_clear)
 
         action_settings = QAction(QIcon("icons/settings.svg"), "Settings", self)
         action_settings.triggered.connect(lambda: print("Settings action triggered"))
-        toolbar.addAction(action_settings)
+        self.toolbar.addAction(action_settings)
 
         # endregion: Toolbar
         # =========================
@@ -136,15 +137,16 @@ class MainWindow(QMainWindow):
         layout_top.setSizeConstraint(QLayout.SetMinimumSize) # fit content
         layout_top.setSpacing(50)
 
-        shots_per_strip = LabelComboBox("Schüsse pro Streifen", ["10", "5", "2", "1"])
-        shots_per_strip.LCcombo_box.currentIndexChanged.connect(self.index_changed)
-        layout_top.addWidget(shots_per_strip)
+        self.shots_per_strip = LabelComboBox("Schüsse pro Streifen", ["10", "5", "2", "1"])
+        self.shots_per_strip.LCcombo_box.setToolTip("Anzahl der Schüsse, die auf einem Streifen vorgesehen sind")
+        self.shots_per_strip.LCcombo_box.currentIndexChanged.connect(self.index_changed)
+        layout_top.addWidget(self.shots_per_strip)
 
-        savemode = LabelRadioGroup("Speichermodus", ["mit Teiler", "ohne Teiler", "einzeln mit Teiler, Gesamt ohne"], default_index=0)
-        layout_top.addWidget(savemode)
+        self.savemode = LabelRadioGroup("Speichermodus", [("mit Teiler", "Speichert alle Ergebnisse mit Teiler"), ("ohne Teiler", "Speichert alle Ergebnisse ohne Teiler"), ("einzeln mit Teiler, Gesamt ohne", "Einzelergebnisse mit Teiler anzeigen, aber ohne Teiler summieren")], default_index=0)
+        layout_top.addWidget(self.savemode)
 
-        name = LabelLineEdit("Name des Schützen", grow=True)
-        layout_top.addWidget(name)
+        self.name = LabelLineEdit("Name des Schützen", grow=True)
+        layout_top.addWidget(self.name)
 
         layout_main.addWidget(top)
 
@@ -158,8 +160,8 @@ class MainWindow(QMainWindow):
         bottom = QGroupBox("Ergebnisse")
         layout_bottom = QVBoxLayout(bottom)
 
-        result_table = QTableWidget()
-        layout_bottom.addWidget(result_table)
+        self.table = QTableWidget(5, 5)
+        layout_bottom.addWidget(self.table)
 
         layout_main.addWidget(bottom)
 
@@ -179,20 +181,22 @@ class MainWindow(QMainWindow):
     def index_changed(self, i):
         print(i)
 
-    def showEvent(self, event):
+    def showEvent(self, event: QShowEvent):
         print("Window is shown")
         super().showEvent(event)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent):
         print("Window is closing")
         event.accept()
 
-app = QApplication(sys.argv)
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
 
-window = MainWindow()
-window.show()
+    window = MainWindow()
+    window.show()
+    window.name.LLline_edit.setFocus()  # Set focus to the name input field on startup
 
-app.exec()
+    app.exec()
 
 # https://www.pythonguis.com/pyqt5-tutorial/
 # https://www.pythonguis.com/tutorials/pyqt-layouts/
